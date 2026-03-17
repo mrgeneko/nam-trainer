@@ -255,6 +255,10 @@ class TrainingQueue:
         else:
             outdir = job.train_destination
 
+        # Create job-specific subdirectory to isolate checkpoints
+        job_dir = outdir / f"job_{job.job_id[:8]}"
+        job_dir.mkdir(parents=True, exist_ok=True)
+
         # Ensure output directory exists
         outdir.mkdir(parents=True, exist_ok=True)
 
@@ -498,7 +502,7 @@ class TrainingQueue:
                 str(data_config_path),
                 str(model_config_path),
                 str(learning_config_path),
-                str(outdir),
+                str(job_dir),
                 "--no-show",
                 "--no-plots",
             ]
@@ -567,9 +571,9 @@ class TrainingQueue:
 
             # Look for the output .nam file
             # nam-full creates a timestamped subdirectory with model.nam inside
-            if outdir.exists():
+            if job_dir.exists():
                 # Find the most recently created subdirectory (the timestamp dir)
-                subdirs = [d for d in outdir.iterdir() if d.is_dir()]
+                subdirs = [d for d in job_dir.iterdir() if d.is_dir()]
                 if subdirs:
                     # Get the most recent one (by modification time)
                     timestamp_dir = max(subdirs, key=lambda d: d.stat().st_mtime)
