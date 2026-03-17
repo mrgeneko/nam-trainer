@@ -143,6 +143,7 @@ class TrainingQueue:
         self._job_order: _List[str] = []  # To maintain insertion order
         self._lock = _threading.Lock()
         self._running = False
+        self._paused = False
         self._stop_requested = False
         self._worker_thread: _Optional[_threading.Thread] = None
         self._current_process: _Optional[_subprocess.Popen] = None
@@ -153,6 +154,17 @@ class TrainingQueue:
             self._jobs[job.job_id] = job
             self._job_order.append(job.job_id)
             job.status = JobStatus.QUEUED
+
+    def request_pause(self):
+        """Request the queue to pause after current job completes."""
+        self._paused = True
+
+    def request_resume(self):
+        """Request the queue to resume processing."""
+        self._paused = False
+
+    def is_paused(self) -> bool:
+        return self._paused
 
     def request_stop(self):
         """Request the queue to stop. Current job will be marked as cancelled."""
@@ -209,6 +221,7 @@ class TrainingQueue:
     def start(self):
         self._running = True
         self._stop_requested = False
+        self._paused = False
         self._worker_thread = _threading.Thread(target=self._worker_loop, daemon=True)
         self._worker_thread.start()
 
@@ -261,6 +274,13 @@ class TrainingQueue:
 
     def _worker_loop(self):
         while self._running and not self._stop_requested:
+            # Check if paused
+            while self._paused and not self._stop_requested:
+                _time.sleep(0.5)
+
+            if self._stop_requested:
+                break
+
             job = self._get_next_job()
             if job is None:
                 self._running = False

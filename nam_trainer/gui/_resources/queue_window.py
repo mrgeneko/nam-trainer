@@ -50,6 +50,18 @@ class QueueWindow:
         )
         self._button_stop.pack(side=_tk.LEFT, padx=2)
 
+        # Pause button
+        self._button_pause = _ttk.Button(
+            self._frame_controls, text="Pause", command=self._pause_queue
+        )
+        self._button_pause.pack(side=_tk.LEFT, padx=2)
+
+        # Resume button
+        self._button_resume = _ttk.Button(
+            self._frame_controls, text="Resume", command=self._resume_queue
+        )
+        self._button_resume.pack(side=_tk.LEFT, padx=2)
+
         # Refresh button
         self._button_refresh = _ttk.Button(
             self._frame_controls, text="Refresh", command=self._refresh_queue
@@ -165,8 +177,20 @@ class QueueWindow:
         self._update_status()
         self._refresh_queue()
 
+    def _pause_queue(self):
+        self._queue.request_pause()
+        self._update_status()
+        self._refresh_queue()
+
+    def _resume_queue(self):
+        self._queue.request_resume()
+        self._update_status()
+        self._refresh_queue()
+
     def _update_status(self):
-        if self._queue.is_running():
+        if self._queue.is_paused():
+            self._label_status.config(text="Queue is paused")
+        elif self._queue.is_running():
             self._label_status.config(text="Queue is running")
         else:
             self._label_status.config(text="Queue is stopped")
