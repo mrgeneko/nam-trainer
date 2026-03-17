@@ -1,0 +1,11 @@
+{
+    "update": {
+        "newest_available_version": "0.12.2",
+        "never_show_again": false
+    },
+    "last_paths": {
+        "input_file": "/Users/gene/Library/Mobile Documents/com~apple~CloudDocs/NAM/Nam Studio NAMs/T3K-sweep-v3 2.wav",
+        "output_file": "/Users/gene/Library/Mobile Documents/com~apple~CloudDocs/NAM/Nam Studio NAMs/AC30 drive/i see 30 drive.wav",
+        "training_destination": "/Users/gene/Desktop/nam train output"
+    }
+}
