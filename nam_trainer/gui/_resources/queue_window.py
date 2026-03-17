@@ -322,17 +322,99 @@ class QueueWindow:
             btn.pack(side=_tk.RIGHT, padx=2)
             return frame
 
+        # Mode selection: Single vs Batch
+        mode_frame = _ttk.Frame(dialog)
+        mode_frame.pack(fill=_tk.X, padx=5, pady=5)
+        _ttk.Label(mode_frame, text="Mode:").pack(side=_tk.LEFT)
+        mode_var = _tk.StringVar(value="single")
+        _ttk.Radiobutton(mode_frame, text="Single job", variable=mode_var, value="single").pack(side=_tk.LEFT, padx=10)
+        _ttk.Radiobutton(mode_frame, text="Batch (CSV)", variable=mode_var, value="batch").pack(side=_tk.LEFT)
+
+        # Single mode fields
+        single_frame = _ttk.Frame(dialog)
+        single_frame.pack(fill=_tk.BOTH, expand=True)
+
         # Input file row
         input_var = _tk.StringVar()
-        create_labeled_field(dialog, "Input (dry):", input_var, is_file_path=True)
+        create_labeled_field(single_frame, "Input (dry):", input_var, is_file_path=True)
 
         # Output file row
         output_var = _tk.StringVar()
-        create_labeled_field(dialog, "Output (reamped):", output_var, is_file_path=True)
+        create_labeled_field(single_frame, "Output (reamped):", output_var, is_file_path=True)
 
         # Training destination row
         dest_var = _tk.StringVar()
-        create_labeled_field(dialog, "Destination:", dest_var, is_directory=True)
+        create_labeled_field(single_frame, "Destination:", dest_var, is_directory=True)
+
+        # Batch mode frame (initially hidden)
+        batch_frame = _ttk.Frame(dialog)
+        
+        # CSV file selection for batch
+        csv_frame = _ttk.Frame(batch_frame)
+        csv_frame.pack(fill=_tk.X, padx=5, pady=3)
+        _ttk.Label(csv_frame, text="CSV file:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
+        csv_var = _tk.StringVar()
+        _ttk.Entry(csv_frame, textvariable=csv_var, width=30).pack(side=_tk.LEFT, fill=_tk.X, expand=True)
+        _ttk.Button(
+            csv_frame,
+            text="Browse",
+            command=lambda: csv_var.set(
+                _tk.filedialog.askopenfilename(
+                    title="Select CSV File",
+                    filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+                )
+            ),
+        ).pack(side=_tk.RIGHT, padx=2)
+        
+        _ttk.Label(
+            batch_frame,
+            text="CSV format: input_path,output_path (one pair per line, no header)",
+            font=("Helvetica", 8),
+        ).pack(anchor=_tk.W, padx=5, pady=3)
+        
+        _ttk.Label(batch_frame, text="Or select input + multiple outputs:").pack(anchor=_tk.W, padx=5, pady=3)
+        
+        batch_input_frame = _ttk.Frame(batch_frame)
+        batch_input_frame.pack(fill=_tk.X, padx=5, pady=3)
+        _ttk.Label(batch_input_frame, text="Input (dry):", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
+        batch_input_var = _tk.StringVar()
+        _ttk.Entry(batch_input_frame, textvariable=batch_input_var, width=30).pack(side=_tk.LEFT, fill=_tk.X, expand=True)
+        _ttk.Button(
+            batch_input_frame,
+            text="Browse",
+            command=lambda: batch_input_var.set(
+                _tk.filedialog.askopenfilename(
+                    title="Select Input File",
+                    filetypes=[("WAV files", "*.wav"), ("All files", "*.*")],
+                )
+            ),
+        ).pack(side=_tk.RIGHT, padx=2)
+        
+        batch_outputs_frame = _ttk.Frame(batch_frame)
+        batch_outputs_frame.pack(fill=_tk.X, padx=5, pady=3)
+        _ttk.Label(batch_outputs_frame, text="Outputs:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
+        batch_outputs_var = _tk.StringVar()
+        _ttk.Entry(batch_outputs_frame, textvariable=batch_outputs_var, width=30).pack(side=_tk.LEFT, fill=_tk.X, expand=True)
+        _ttk.Button(
+            batch_outputs_frame,
+            text="Browse Files",
+            command=lambda: batch_outputs_var.set(
+                " ".join(_tk.filedialog.askopenfilenames(
+                    title="Select Output Files",
+                    filetypes=[("WAV files", "*.wav"), ("All files", "*.*")],
+                ))
+            ),
+        ).pack(side=_tk.RIGHT, padx=2)
+
+        def toggle_mode(*args):
+            if mode_var.get() == "single":
+                batch_frame.pack_forget()
+                single_frame.pack(fill=_tk.BOTH, expand=True)
+            else:
+                single_frame.pack_forget()
+                batch_frame.pack(fill=_tk.BOTH, expand=True, pady=10)
+
+        mode_var.trace("w", toggle_mode)
 
         # Architecture section
         _ttk.Separator(dialog, orient=_tk.HORIZONTAL).pack(fill=_tk.X, padx=5, pady=10)
@@ -468,21 +550,9 @@ class QueueWindow:
                 )
                 return
 
-            input_path = _Path(input_var.get())
-            output_path = _Path(output_var.get())
-            train_dest = _Path(dest_var.get())
-
-            if not input_path.exists():
-                _tk.messagebox.showerror(
-                    "Error", f"Input file does not exist: {input_path}"
-                )
-                return
-            if not output_path.exists():
-                _tk.messagebox.showerror(
-                    "Error", f"Output file does not exist: {output_path}"
-                )
-                return
-            if not train_dest.exists():
+            # Get shared fields
+            train_dest = _Path(dest_var.get()) if dest_var.get() else None
+            if train_dest and not train_dest.exists():
                 _tk.messagebox.showerror(
                     "Error", f"Training destination does not exist: {train_dest}"
                 )
@@ -502,29 +572,108 @@ class QueueWindow:
                 float(output_level_var.get()) if output_level_var.get() else None
             )
 
-            # Add job for each selected architecture
             batch_guid = batch_guid_var.get() if batch_guid_var.get() else None
 
-            for arch in selected_archs:
-                job_id = f"{_uuid.uuid4().hex[:8]}"
-                job = TrainingJob(
-                    job_id=job_id,
-                    input_path=input_path,
-                    output_path=output_path,
-                    train_destination=train_dest,
-                    architecture=arch,
-                    output_template=output_template_var.get(),
-                    batch_guid=batch_guid,
-                    model_name=name_var.get() if name_var.get() else None,
-                    modeled_by=modeled_by_var.get() if modeled_by_var.get() else None,
-                    gear_type=gear_type,
-                    gear_make=make_var.get() if make_var.get() else None,
-                    gear_model=model_var.get() if model_var.get() else None,
-                    tone_type=tone_type,
-                    input_level_dbu=input_level,
-                    output_level_dbu=output_level,
+            # Build list of (input, output) pairs based on mode
+            job_pairs = []
+
+            if mode_var.get() == "single":
+                # Single mode
+                input_path = _Path(input_var.get())
+                output_path = _Path(output_var.get())
+
+                if not input_path.exists():
+                    _tk.messagebox.showerror(
+                        "Error", f"Input file does not exist: {input_path}"
+                    )
+                    return
+                if not output_path.exists():
+                    _tk.messagebox.showerror(
+                        "Error", f"Output file does not exist: {output_path}"
+                    )
+                    return
+
+                job_pairs = [(input_path, output_path)]
+
+            else:
+                # Batch mode
+                if csv_var.get():
+                    # CSV mode
+                    csv_path = _Path(csv_var.get())
+                    if not csv_path.exists():
+                        _tk.messagebox.showerror(
+                            "Error", f"CSV file does not exist: {csv_path}"
+                        )
+                        return
+
+                    try:
+                        with open(csv_path, 'r') as f:
+                            for line in f:
+                                line = line.strip()
+                                if line and not line.startswith('#'):
+                                    parts = line.split(',')
+                                    if len(parts) >= 2:
+                                        inp = _Path(parts[0].strip())
+                                        out = _Path(parts[1].strip())
+                                        if inp.exists() and out.exists():
+                                            job_pairs.append((inp, out))
+                    except Exception as e:
+                        _tk.messagebox.showerror(
+                            "Error", f"Failed to read CSV: {e}"
+                        )
+                        return
+                elif batch_input_var.get() and batch_outputs_var.get():
+                    # Multiple outputs mode
+                    input_path = _Path(batch_input_var.get())
+                    if not input_path.exists():
+                        _tk.messagebox.showerror(
+                            "Error", f"Input file does not exist: {input_path}"
+                        )
+                        return
+
+                    output_files = batch_outputs_var.get().split()
+                    for out_file in output_files:
+                        out_path = _Path(out_file)
+                        if out_path.exists():
+                            job_pairs.append((input_path, out_path))
+                        else:
+                            _tk.messagebox.showwarning(
+                                "Warning", f"Output file does not exist: {out_path}"
+                            )
+                else:
+                    _tk.messagebox.showerror(
+                        "Error", "Please select either a CSV file or input+outputs for batch mode"
+                    )
+                    return
+
+            if not job_pairs:
+                _tk.messagebox.showerror(
+                    "Error", "No valid input/output pairs found"
                 )
-                self._queue.add_job(job)
+                return
+
+            # Add jobs for each pair and architecture
+            for input_path, output_path in job_pairs:
+                for arch in selected_archs:
+                    job_id = f"{_uuid.uuid4().hex[:8]}"
+                    job = TrainingJob(
+                        job_id=job_id,
+                        input_path=input_path,
+                        output_path=output_path,
+                        train_destination=train_dest,
+                        architecture=arch,
+                        output_template=output_template_var.get(),
+                        batch_guid=batch_guid,
+                        model_name=name_var.get() if name_var.get() else None,
+                        modeled_by=modeled_by_var.get() if modeled_by_var.get() else None,
+                        gear_type=gear_type,
+                        gear_make=make_var.get() if make_var.get() else None,
+                        gear_model=model_var.get() if model_var.get() else None,
+                        tone_type=tone_type,
+                        input_level_dbu=input_level,
+                        output_level_dbu=output_level,
+                    )
+                    self._queue.add_job(job)
 
             self._refresh_queue()
             dialog.destroy()
