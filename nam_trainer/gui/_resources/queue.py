@@ -52,6 +52,12 @@ class TrainingJob:
     architecture: _core.Architecture
     num_epochs: int = 100  # Default epochs for queue jobs
 
+    # Output filename template
+    output_template: str = "{input}_{arch}"  # Default template
+
+    # Batch/GUID for grouping multiple jobs
+    batch_guid: _Optional[str] = None
+
     # Metadata fields
     model_name: _Optional[str] = None
     modeled_by: _Optional[str] = None
@@ -76,9 +82,44 @@ class TrainingJob:
     current_epoch: _Optional[int] = None
     current_esr: _Optional[float] = None
 
+    def resolve_output_filename(self) -> str:
+        """Resolve the output template using job fields."""
+        import uuid
+        from datetime import datetime
+
+        input_name = _Path(self.input_path).stem
+        arch = self.architecture.value
+        now = datetime.now()
+        
+        # Build token replacements
+        tokens = {
+            "{input}": input_name,
+            "{arch}": arch,
+            "{model}": arch,  # Alias
+            "{date}": now.strftime("%Y-%m-%d"),
+            "{time}": now.strftime("%H-%M-%S"),
+            "{creator}": self.modeled_by or "",
+            "{gear_type}": self.gear_type.value if self.gear_type else "",
+            "{guid}": self.batch_guid or "",
+        }
+
+        result = self.output_template
+        for token, value in tokens.items():
+            result = result.replace(token, value)
+
+        # Clean up any empty braces from unused tokens
+        import re
+        result = re.sub(r'\{[^}]*\}', '', result)
+        
+        # Replace multiple underscores/hyphens with single
+        result = re.sub(r'[_-]+', '_', result)
+        result = result.strip('_-')
+        
+        return result
+
     def get_basename(self) -> str:
-        output_name = _Path(self.output_path).stem
-        return f"{output_name}_{self.architecture.value}"
+        """Get the output filename (without extension) based on template."""
+        return self.resolve_output_filename()
 
     def get_user_metadata(self) -> _UserMetadata:
         """Create UserMetadata from job fields"""

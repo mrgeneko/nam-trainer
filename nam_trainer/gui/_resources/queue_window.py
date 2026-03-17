@@ -12,6 +12,7 @@ from pathlib import Path as _Path
 from typing import Optional as _Optional
 import tkinter.filedialog as _filedialog
 import tkinter.messagebox as _messagebox
+import uuid as _uuid
 
 try:
     from nam.train import core as _core
@@ -426,6 +427,39 @@ class QueueWindow:
             side=_tk.LEFT, padx=5
         )
 
+        # Output template section
+        _ttk.Separator(dialog, orient=_tk.HORIZONTAL).pack(fill=_tk.X, padx=5, pady=10)
+        _ttk.Label(dialog, text="Output Filename Template:").pack(
+            anchor=_tk.W, padx=5, pady=3
+        )
+        template_frame = _ttk.Frame(dialog)
+        template_frame.pack(fill=_tk.X, padx=5, pady=3)
+        output_template_var = _tk.StringVar(value="{input}_{arch}")
+        _ttk.Entry(template_frame, textvariable=output_template_var, width=50).pack(
+            side=_tk.LEFT, fill=_tk.X, expand=True
+        )
+        _ttk.Label(
+            dialog,
+            text="Tokens: {input} {arch} {date} {time} {creator} {gear_type} {guid}",
+            font=("Helvetica", 8),
+        ).pack(anchor=_tk.W, padx=5)
+
+        # Batch GUID for grouping jobs
+        batch_frame = _ttk.Frame(dialog)
+        batch_frame.pack(fill=_tk.X, padx=5, pady=3)
+        _ttk.Label(batch_frame, text="Batch GUID:", width=20, anchor=_tk.W).pack(
+            side=_tk.LEFT
+        )
+        batch_guid_var = _tk.StringVar()
+        _ttk.Entry(batch_frame, textvariable=batch_guid_var, width=30).pack(
+            side=_tk.LEFT, fill=_tk.X, expand=True
+        )
+        _ttk.Button(
+            batch_frame,
+            text="Generate",
+            command=lambda: batch_guid_var.set(_uuid.uuid4().hex[:8]),
+        ).pack(side=_tk.RIGHT, padx=2)
+
         def on_add():
             selected_archs = [arch for arch, var in arch_vars.items() if var.get()]
             if not selected_archs:
@@ -469,16 +503,18 @@ class QueueWindow:
             )
 
             # Add job for each selected architecture
-            import uuid
+            batch_guid = batch_guid_var.get() if batch_guid_var.get() else None
 
             for arch in selected_archs:
-                job_id = f"{uuid.uuid4().hex[:8]}"
+                job_id = f"{_uuid.uuid4().hex[:8]}"
                 job = TrainingJob(
                     job_id=job_id,
                     input_path=input_path,
                     output_path=output_path,
                     train_destination=train_dest,
                     architecture=arch,
+                    output_template=output_template_var.get(),
+                    batch_guid=batch_guid,
                     model_name=name_var.get() if name_var.get() else None,
                     modeled_by=modeled_by_var.get() if modeled_by_var.get() else None,
                     gear_type=gear_type,
