@@ -64,6 +64,22 @@ class QueueWindow:
         )
         self._button_delete.pack(side=_tk.LEFT, padx=2)
 
+        # Move up button
+        self._button_move_up = _ttk.Button(
+            self._frame_controls,
+            text="Move Up",
+            command=self._move_selected_up,
+        )
+        self._button_move_up.pack(side=_tk.LEFT, padx=2)
+
+        # Move down button
+        self._button_move_down = _ttk.Button(
+            self._frame_controls,
+            text="Move Down",
+            command=self._move_selected_down,
+        )
+        self._button_move_down.pack(side=_tk.LEFT, padx=2)
+
         # Add job button
         self._button_add_job = _ttk.Button(
             self._frame_controls, text="Add Job", command=self._add_job_dialog
@@ -239,6 +255,20 @@ class QueueWindow:
             for item in selected:
                 job_id = item  # iid is the job_id
                 self._queue.remove_job(job_id)
+            self._refresh_queue()
+
+    def _move_selected_up(self):
+        selected = self._tree.selection()
+        if selected:
+            for item in selected:
+                self._queue.move_job_up(item)
+            self._refresh_queue()
+
+    def _move_selected_down(self):
+        selected = self._tree.selection()
+        if selected:
+            for item in selected:
+                self._queue.move_job_down(item)
             self._refresh_queue()
 
     def _show_job_details(self, event=None):

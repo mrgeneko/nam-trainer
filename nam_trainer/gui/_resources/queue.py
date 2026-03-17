@@ -177,6 +177,28 @@ class TrainingQueue:
             if job_id in self._job_order:
                 self._job_order.remove(job_id)
 
+    def move_job_up(self, job_id: str):
+        """Move a job up in the queue (earlier execution)."""
+        with self._lock:
+            if job_id in self._job_order:
+                idx = self._job_order.index(job_id)
+                if idx > 0:
+                    self._job_order[idx], self._job_order[idx - 1] = (
+                        self._job_order[idx - 1],
+                        self._job_order[idx],
+                    )
+
+    def move_job_down(self, job_id: str):
+        """Move a job down in the queue (later execution)."""
+        with self._lock:
+            if job_id in self._job_order:
+                idx = self._job_order.index(job_id)
+                if idx < len(self._job_order) - 1:
+                    self._job_order[idx], self._job_order[idx + 1] = (
+                        self._job_order[idx + 1],
+                        self._job_order[idx],
+                    )
+
     def get_queue_size(self) -> int:
         with self._lock:
             return len(self._jobs)
