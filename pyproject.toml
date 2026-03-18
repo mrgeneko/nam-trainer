@@ -1,0 +1,25 @@
+[project]
+name = "nam-trainer"
+version = "0.1.0"
+description = "Batch training GUI for neural-amp-modeler"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "neural-amp-modeler[cli]>=0.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[project.scripts]
+nam-trainer = "test_queue:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["nam_trainer*"]

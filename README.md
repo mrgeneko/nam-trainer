@@ -2,6 +2,52 @@
 
 A batch processing GUI for neural-amp-modeler with queue management, progress monitoring, and customizable output filenames.
 
+## Installation
+
+### Prerequisites
+
+- **Python 3.10 or later**
+- **nam-full** CLI tool (part of neural-amp-modeler)
+
+### Setup
+
+1. **Clone the repository with submodules:**
+   ```bash
+   git clone --recurse-submodules https://github.com/mrgeneko/nam-trainer.git
+   cd nam-trainer
+   ```
+
+2. **Install Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+   
+   Or install the package:
+   ```bash
+   pip install -e .
+   ```
+
+3. **Verify nam-full is installed:**
+   ```bash
+   nam-full --version
+   ```
+   
+   If not found, install it:
+   ```bash
+   pip install neural-amp-modeler[cli]
+   ```
+
+4. **Run the application:**
+   - macOS/Linux: `./start.sh`
+   - Windows: `start.bat`
+
+### Linux Additional Setup
+
+If tkinter is not installed:
+```bash
+sudo apt install python3-tk
+```
+
 ## Project Structure
 
 ```
