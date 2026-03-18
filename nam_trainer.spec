@@ -5,17 +5,18 @@ Build with: pyinstaller nam_trainer.spec
 """
 
 import sys
+import os
+import inspect
 from pathlib import Path
 
 block_cipher = None
 
-# Get absolute paths
-root_dir = Path(sys._MEIPASS) if hasattr(sys, '_MEIPASS') else Path(__file__).parent
-neural_amp_dir = root_dir / "neural-amp-modeler"
+# Get the directory where this spec file is located
+SPEC_DIR = Path(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))))
 
 a = Analysis(
     ['test_queue.py'],
-    pathex=[str(Path(__file__).parent)],
+    pathex=[str(SPEC_DIR)],
     binaries=[],
     datas=[
         # Include neural-amp-modeler submodule
@@ -86,7 +87,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='icon.ico',  # Optional: add your own icon
+    # icon='icon.ico',  # Optional: add your own icon
     manifest=None,
     resources=[],
 )
@@ -95,7 +96,7 @@ exe = EXE(
 app = BUNDLE(
     exe,
     name='NAMTrainer.app',
-    icon='icon.icns',  # Optional: macOS icon
+    # icon='icon.icns',  # Optional: macOS icon
     bundle_identifier='com.namtrainer.app',
     info_plist={
         'CFBundleName': 'NAM Trainer',
