@@ -603,13 +603,13 @@ class QueueWindow:
         )
         template_frame = _ttk.Frame(dialog)
         template_frame.pack(fill=_tk.X, padx=5, pady=3)
-        output_template_var = _tk.StringVar(value=cfg.get("output_template", "{guid}_{model}_{type}_{size}_{date}"))
+        output_template_var = _tk.StringVar(value=cfg.get("output_template", "__ID_{guid}__{model}_{type}_{size}_{date}"))
         _ttk.Entry(template_frame, textvariable=output_template_var, width=50).pack(
             side=_tk.LEFT, fill=_tk.X, expand=True
         )
         _ttk.Label(
             dialog,
-            text="Tokens: {input} {size} {date} {time} {creator} {type} {guid} {model}",
+            text="Tokens: {input} {size} {date} {time} {creator} {type} {model} __ID_{guid}__",
             font=("Helvetica", 8),
         ).pack(anchor=_tk.W, padx=5)
 

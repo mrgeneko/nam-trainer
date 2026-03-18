@@ -73,14 +73,14 @@ Output filenames can be customized using tokens:
 |-------|-------------|
 | `{input}` | Input file base name |
 | `{size}` | Architecture size (standard, lite, feather, nano) |
-| `{date}` | Date (YYYY-MM-DD) |
-| `{time}` | Time (HH-MM-SS) |
+| `{date}` | Date (YYYY_MM_DD) |
+| `{time}` | Time (HH_MM_SS) |
 | `{creator}` | Modeled by field |
 | `{type}` | Gear type (head, combo, cab, pedal, etc.) |
-| `{guid}` | Batch GUID for grouping related jobs |
+| `{guid}` | Batch GUID for grouping related jobs (formatted as `__ID_{guid}__`) |
 | `{model}` | Model name |
 
-Example: `{guid}_{model}_{type}_{size}_{date}` → `a1b2c3d4_MyAmp_cab_standard_2026-03-17`
+Example: `__ID_{guid}__{model}_{type}_{size}_{date}` → `__ID_a1b2c3d4__MyAmp_cab_standard_2026_03_17`
 
 ## Features
 

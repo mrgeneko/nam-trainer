@@ -97,11 +97,11 @@ class TrainingJob:
             "{input}": input_name,
             "{size}": arch,
             "{model}": self.model_name or "",
-            "{date}": now.strftime("%Y-%m-%d"),
-            "{time}": now.strftime("%H-%M-%S"),
+            "{date}": now.strftime("%Y_%m_%d"),
+            "{time}": now.strftime("%H_%M_%S"),
             "{creator}": self.modeled_by or "",
             "{type}": self.gear_type.value if self.gear_type else "",
-            "{guid}": self.batch_guid or "",
+            "{guid}": f"__ID_{self.batch_guid}__" if self.batch_guid else "",
         }
 
         result = self.output_template
@@ -112,9 +112,10 @@ class TrainingJob:
         import re
         result = re.sub(r'\{[^}]*\}', '', result)
         
-        # Replace multiple underscores/hyphens with single
-        result = re.sub(r'[_-]+', '_', result)
-        result = result.strip('_-')
+        # Normalize separators (but preserve __ GUID marker)
+        if '__' not in result:
+            result = re.sub(r'[_-]+', '_', result)
+            result = result.strip('_-')
         
         return result
 
