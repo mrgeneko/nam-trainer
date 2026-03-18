@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "nam_trainer" / "gui" / "_resources"))
 
 # Import the queue window from local files
-from queue import TrainingQueue
+from training_queue import TrainingQueue
 from queue_window import QueueWindow
 
 import tkinter as tk
@@ -21,6 +21,7 @@ def main():
     
     queue = TrainingQueue()
     queue_window = QueueWindow(root, queue)
+    queue_window._add_job_dialog()
     
     print("Queue window opened. Close the window to exit.")
     root.mainloop()

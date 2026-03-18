@@ -18,10 +18,14 @@ try:
     from nam.train import core as _core
     from nam.models.metadata import GearType as _GearType
     from nam.models.metadata import ToneType as _ToneType
-    from nam.train.gui._resources.queue import TrainingQueue, TrainingJob, JobStatus
-    from nam.train.gui._resources import config as _config
+    from training_queue import TrainingQueue, TrainingJob, JobStatus
 except ImportError:
     pass
+
+try:
+    import config as _config
+except ImportError:
+    _config = None
 
 
 class QueueWindow:
@@ -54,12 +58,6 @@ class QueueWindow:
             self._frame_controls, text="Stop Queue", command=self._stop_queue
         )
         self._button_stop.pack(side=_tk.LEFT, padx=2)
-
-        # Refresh button
-        self._button_refresh = _ttk.Button(
-            self._frame_controls2, text="Refresh", command=self._refresh_queue
-        )
-        self._button_refresh.pack(side=_tk.LEFT, padx=2)
 
         # Delete selected button
         self._button_delete = _ttk.Button(
@@ -132,12 +130,12 @@ class QueueWindow:
 
         # Configure column widths
         self._tree.column("#0", width=0, stretch=False)  # Hide tree column
-        self._tree.column("job_id", width=46, minwidth=50)
+        self._tree.column("job_id", width=55, minwidth=50)
         self._tree.column("dry", width=120, minwidth=80)
         self._tree.column("wet", width=120, minwidth=80)
         self._tree.column("size", width=40, minwidth=60)
-        self._tree.column("filename", width=150, minwidth=100)
-        self._tree.column("status", width=110, minwidth=80)
+        self._tree.column("filename", width=300, minwidth=100)
+        self._tree.column("status", width=139, minwidth=80)
         self._tree.column("ESR", width=60, minwidth=50)
         self._tree.column("elapsed", width=70, minwidth=50)
         self._tree.column("remaining", width=70, minwidth=50)
@@ -193,6 +191,10 @@ class QueueWindow:
             self._label_status.config(text="Queue is stopped")
 
     def _refresh_queue(self):
+        # Save current selection
+        selected = self._tree.selection()
+        selected_job_id = selected[0] if selected else None
+
         # Clear existing items
         for item in self._tree.get_children():
             self._tree.delete(item)
@@ -273,16 +275,6 @@ class QueueWindow:
                 ),
             )
 
-        # Dynamically size filename column to fit longest name
-        max_len = 0
-        for job in self._queue.get_all_jobs():
-            basename = job.get_basename()
-            if len(basename) > max_len:
-                max_len = len(basename)
-        # Add some padding and use a reasonable max
-        col_width = min(max(max_len * 8, 100), 400)
-        self._tree.column("filename", width=col_width)
-
         # Update status bar
         running = self._queue.is_running()
         pending = sum(
@@ -305,6 +297,10 @@ class QueueWindow:
             self._label_status.config(
                 text=f"Stopped | Queued: {pending} | Done: {completed} | Failed: {failed}"
             )
+
+        # Restore selection
+        if selected_job_id and self._tree.exists(selected_job_id):
+            self._tree.selection_set(selected_job_id)
 
     def _delete_selected_job(self):
         selected = self._tree.selection()
@@ -372,10 +368,10 @@ class QueueWindow:
     def _add_job_dialog(self):
         """Open dialog to add a new job to the queue."""
         dialog = _tk.Toplevel(self._root)
-        dialog.title("Add Training Job")
+        dialog.title("Add Job")
         dialog.geometry("750x700")
 
-        cfg = _config.load()
+        cfg = _config.load() if _config else {}
 
         # Helper function to create row with label on left and field on right
         def create_labeled_field(
@@ -424,12 +420,12 @@ class QueueWindow:
         single_frame.pack(fill=_tk.BOTH, expand=True)
 
         # Input file row
-        input_var = _tk.StringVar()
-        create_labeled_field(single_frame, "Input (dry):", input_var, is_file_path=True)
+        input_var = _tk.StringVar(value=cfg.get("dry_path", ""))
+        create_labeled_field(single_frame, "Dry:", input_var, is_file_path=True)
 
         # Output file row
-        output_var = _tk.StringVar()
-        create_labeled_field(single_frame, "Output (reamped):", output_var, is_file_path=True)
+        output_var = _tk.StringVar(value=cfg.get("wet_path", ""))
+        create_labeled_field(single_frame, "Wet:", output_var, is_file_path=True)
 
         # Training destination row
         dest_var = _tk.StringVar(value=cfg.get("default_destination", ""))
@@ -465,7 +461,7 @@ class QueueWindow:
         
         batch_input_frame = _ttk.Frame(batch_frame)
         batch_input_frame.pack(fill=_tk.X, padx=5, pady=3)
-        _ttk.Label(batch_input_frame, text="Input (dry):", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
+        _ttk.Label(batch_input_frame, text="Dry:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
         batch_input_var = _tk.StringVar()
         _ttk.Entry(batch_input_frame, textvariable=batch_input_var, width=30).pack(side=_tk.LEFT, fill=_tk.X, expand=True)
         _ttk.Button(
@@ -638,6 +634,8 @@ class QueueWindow:
             _config.save({
                 "default_architectures": [arch.value for arch, var in arch_vars.items() if var.get()],
                 "output_template": output_template_var.get(),
+                "dry_path": input_var.get(),
+                "wet_path": output_var.get(),
                 "default_destination": dest_var.get(),
                 "model_name": name_var.get(),
                 "modeled_by": modeled_by_var.get(),

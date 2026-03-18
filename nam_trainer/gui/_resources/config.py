@@ -8,6 +8,8 @@ _CONFIG_FILE = _CONFIG_DIR / "settings.json"
 _DEFAULTS: Dict[str, Any] = {
     "default_architectures": ["standard"],
     "output_template": "{guid}_{model}_{type}_{size}_{date}",
+    "dry_path": "",
+    "wet_path": "",
     "default_destination": "",
     "model_name": "",
     "modeled_by": "",

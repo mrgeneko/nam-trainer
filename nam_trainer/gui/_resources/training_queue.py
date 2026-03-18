@@ -168,13 +168,16 @@ class TrainingQueue:
         return self._paused
 
     def request_stop(self):
-        """Request the queue to stop. Current job will be marked as cancelled."""
+        """Request the queue to stop. Current job will be marked as queued for retry."""
         self._stop_requested = True
         self._running = False
-        # Mark current processing job as cancelled if any
+        # Mark current processing job as queued so it can be retried
         for job in self._jobs.values():
             if job.status == JobStatus.PROCESSING:
-                job.status = JobStatus.CANCELLED
+                job.status = JobStatus.QUEUED
+                job.current_epoch = None
+                job.current_esr = None
+                job.best_esr = None
 
     def get_job(self, job_id: str) -> _Optional[TrainingJob]:
         return self._jobs.get(job_id)
@@ -306,12 +309,19 @@ class TrainingQueue:
     def _process_job(self, job: TrainingJob):
         job.status = JobStatus.PROCESSING
         job.start_time = _time.time()
+        print(f"DEBUG: Starting job {job.job_id}, status={job.status}")
 
         try:
             self._do_train_subprocess(job)
-            # Check if cancelled before marking as completed
-            if self._stop_requested:
+            # Check status before marking as completed
+            print(f"DEBUG: After subprocess, status={job.status}, stop_requested={self._stop_requested}")
+            if job.status == JobStatus.QUEUED:
+                # Job was stopped for retry, keep it queued
+                print(f"DEBUG: Keeping job {job.job_id} as QUEUED")
+                pass
+            elif self._stop_requested:
                 job.status = JobStatus.CANCELLED
+                print(f"DEBUG: Setting job {job.job_id} to CANCELLED")
             else:
                 job.status = JobStatus.COMPLETED
                 # Save final ESR
@@ -613,9 +623,19 @@ class TrainingQueue:
             )
             self._current_process = process
 
+            # Start checkpoint monitoring thread
+            import threading
+            monitor_thread = _threading.Thread(
+                target=self._monitor_checkpoints,
+                args=(job, job_dir),
+                daemon=True
+            )
+            monitor_thread.start()
+
             # Parse output for progress - more flexible patterns
             epoch_pattern = _re.compile(r"Epoch\s*\[?(\d+)\]?", _re.IGNORECASE)
-            esr_pattern = _re.compile(r"ESR[:\s=]+([0-9.eE+-]+)", _re.IGNORECASE)
+            # Match ESR in various formats: ESR=0.044, ESR:0.044, _ESR_0.044_
+            esr_pattern = _re.compile(r"(?:^|[_\s])ESR[:=\s]+([0-9.eE+-]+)", _re.IGNORECASE)
 
             # Collect output for error reporting and debug
             output_lines = []
@@ -624,9 +644,6 @@ class TrainingQueue:
                 for line in process.stdout:
                     output_lines.append(line)
 
-                    # Debug: print each line to see the format
-                    print(f"DEBUG: {line.strip()}")
-
                     # Check for stop request
                     if self._stop_requested:
                         process.terminate()
@@ -634,7 +651,7 @@ class TrainingQueue:
                             process.wait(timeout=2)
                         except _subprocess.TimeoutExpired:
                             process.kill()
-                        job.status = JobStatus.CANCELLED
+                        # Don't overwrite status - request_stop() already set it to QUEUED
                         return
 
                     # Parse epoch progress
@@ -690,3 +707,29 @@ class TrainingQueue:
                         # Optionally clean up the timestamp directory
                         # import shutil
                         # shutil.rmtree(timestamp_dir)
+
+    def _monitor_checkpoints(self, job: TrainingJob, job_dir: _Path):
+        """Monitor checkpoint directory for new files and extract ESR."""
+        import time as _time
+
+        seen_files = set()
+        esr_pattern = _re.compile(r"ESR[=_]([0-9.eE+-]+)", _re.IGNORECASE)
+
+        while not self._stop_requested:
+            try:
+                # Find all checkpoint files
+                for ckpt_file in job_dir.glob("**/checkpoints/*.ckpt"):
+                    if ckpt_file.name not in seen_files:
+                        seen_files.add(ckpt_file.name)
+
+                        # Parse ESR from filename
+                        esr_match = esr_pattern.search(ckpt_file.name)
+                        if esr_match:
+                            esr_value = float(esr_match.group(1))
+                            job.current_esr = esr_value
+                            if job.best_esr is None or esr_value < job.best_esr:
+                                job.best_esr = esr_value
+
+                _time.sleep(1)  # Check every second
+            except Exception:
+                pass
