@@ -69,6 +69,7 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Creating release for version: $VERSION"
+        shell: bash
 
       - name: Prepare artifact (macOS)
         if: matrix.os == 'macos-latest'
