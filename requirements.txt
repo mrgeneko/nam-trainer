@@ -6,3 +6,8 @@ neural-amp-modeler[cli]>=0.9.0
 
 # GUI (tkinter comes bundled with Python on most platforms)
 # On some Linux distros, you may need: apt install python3-tk
+
+# Build dependencies (for creating standalone executables)
+# Install with: pip install -r requirements.txt -r requirements-build.txt
+# Or use: pip install pyinstaller
+pyinstaller>=6.0.0

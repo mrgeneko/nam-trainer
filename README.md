@@ -48,6 +48,46 @@ If tkinter is not installed:
 sudo apt install python3-tk
 ```
 
+## Building Standalone Executables
+
+### Pre-built Releases
+
+Pre-built executables for macOS, Windows, and Linux are available on the [Releases page](https://github.com/mrgeneko/nam-trainer/releases).
+
+### Building from Source
+
+To build a standalone executable on your machine:
+
+1. **Install build dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   pip install pyinstaller
+   ```
+
+2. **Build the executable:**
+   ```bash
+   pyinstaller nam_trainer.spec
+   ```
+
+3. **Find the output:**
+   - **macOS:** `dist/NAMTrainer.app`
+   - **Windows:** `dist/NAMTrainer.exe`
+   - **Linux:** `dist/NAMTrainer`
+
+4. **Run the executable:**
+   - macOS: Double-click `NAMTrainer.app` (or right-click → Open on first run)
+   - Windows: Double-click `NAMTrainer.exe`
+   - Linux: `./dist/NAMTrainer`
+
+### GitHub Actions (Automatic Builds)
+
+When a new tag is pushed (e.g., `v1.0.0`), GitHub Actions automatically builds executables for all platforms and creates a GitHub Release:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
 ## Project Structure
 
 ```
@@ -65,7 +105,15 @@ nam_trainer/
 │           ├── queue.py        # Training queue system
 │           └── queue_window.py # Queue UI window
 │
-└── test_queue.py          # Launcher for queue window
+├── .github/
+│   └── workflows/
+│       └── build.yml     # CI/CD for building releases
+│
+├── nam_trainer.spec       # PyInstaller spec file
+├── requirements.txt       # Runtime dependencies
+├── start.sh              # macOS/Linux launcher
+├── start.bat             # Windows launcher
+└── test_queue.py         # Launcher for queue window
 ```
 
 ## Design Overview
