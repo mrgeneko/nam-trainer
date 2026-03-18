@@ -81,6 +81,7 @@ class TrainingJob:
     # Progress tracking
     current_epoch: _Optional[int] = None
     current_esr: _Optional[float] = None
+    best_esr: _Optional[float] = None
 
     def resolve_output_filename(self) -> str:
         """Resolve the output template using job fields."""
@@ -94,12 +95,12 @@ class TrainingJob:
         # Build token replacements
         tokens = {
             "{input}": input_name,
-            "{arch}": arch,
-            "{model}": arch,  # Alias
+            "{size}": arch,
+            "{model}": self.model_name or "",
             "{date}": now.strftime("%Y-%m-%d"),
             "{time}": now.strftime("%H-%M-%S"),
             "{creator}": self.modeled_by or "",
-            "{gear_type}": self.gear_type.value if self.gear_type else "",
+            "{type}": self.gear_type.value if self.gear_type else "",
             "{guid}": self.batch_guid or "",
         }
 
@@ -313,6 +314,9 @@ class TrainingQueue:
                 job.status = JobStatus.CANCELLED
             else:
                 job.status = JobStatus.COMPLETED
+                # Save final ESR
+                if job.current_esr is not None:
+                    job.esr = job.current_esr
             job.end_time = _time.time()
             job.wall_time = job.end_time - job.start_time
         except Exception as e:
@@ -594,6 +598,8 @@ class TrainingQueue:
             self._current_job_id = job.job_id
 
             # Run subprocess in new process group for proper kill support
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
             process = _subprocess.Popen(
                 cmd,
                 stdout=_subprocess.PIPE,
@@ -603,19 +609,23 @@ class TrainingQueue:
                 preexec_fn=os.setsid
                 if hasattr(os, "setsid")
                 else None,  # New process group on Unix
+                env=env,
             )
             self._current_process = process
 
-            # Parse output for progress
-            epoch_pattern = _re.compile(r"Epoch\[(\d+)\]")
-            esr_pattern = _re.compile(r"val.*ESR[:\s=]+([0-9.]+)", _re.IGNORECASE)
+            # Parse output for progress - more flexible patterns
+            epoch_pattern = _re.compile(r"Epoch\s*\[?(\d+)\]?", _re.IGNORECASE)
+            esr_pattern = _re.compile(r"ESR[:\s=]+([0-9.eE+-]+)", _re.IGNORECASE)
 
-            # Collect output for error reporting
+            # Collect output for error reporting and debug
             output_lines = []
 
             try:
                 for line in process.stdout:
                     output_lines.append(line)
+
+                    # Debug: print each line to see the format
+                    print(f"DEBUG: {line.strip()}")
 
                     # Check for stop request
                     if self._stop_requested:
@@ -632,10 +642,13 @@ class TrainingQueue:
                     if epoch_match:
                         job.current_epoch = int(epoch_match.group(1))
 
-                    # Parse ESR
+                    # Parse ESR and track best
                     esr_match = esr_pattern.search(line)
                     if esr_match:
-                        job.current_esr = float(esr_match.group(1))
+                        esr_value = float(esr_match.group(1))
+                        job.current_esr = esr_value
+                        if job.best_esr is None or esr_value < job.best_esr:
+                            job.best_esr = esr_value
 
                 # Wait for process to complete
                 process.wait()

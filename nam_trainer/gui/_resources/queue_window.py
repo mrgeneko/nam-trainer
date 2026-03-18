@@ -19,6 +19,7 @@ try:
     from nam.models.metadata import GearType as _GearType
     from nam.models.metadata import ToneType as _ToneType
     from nam.train.gui._resources.queue import TrainingQueue, TrainingJob, JobStatus
+    from nam.train.gui._resources import config as _config
 except ImportError:
     pass
 
@@ -38,6 +39,10 @@ class QueueWindow:
         self._frame_controls = _ttk.Frame(self._root)
         self._frame_controls.pack(fill=_tk.X, padx=5, pady=5)
 
+        # Second row of controls
+        self._frame_controls2 = _ttk.Frame(self._root)
+        self._frame_controls2.pack(fill=_tk.X, padx=5, pady=(0, 5))
+
         # Start button
         self._button_start = _ttk.Button(
             self._frame_controls, text="Start Queue", command=self._start_queue
@@ -50,27 +55,15 @@ class QueueWindow:
         )
         self._button_stop.pack(side=_tk.LEFT, padx=2)
 
-        # Pause button
-        self._button_pause = _ttk.Button(
-            self._frame_controls, text="Pause", command=self._pause_queue
-        )
-        self._button_pause.pack(side=_tk.LEFT, padx=2)
-
-        # Resume button
-        self._button_resume = _ttk.Button(
-            self._frame_controls, text="Resume", command=self._resume_queue
-        )
-        self._button_resume.pack(side=_tk.LEFT, padx=2)
-
         # Refresh button
         self._button_refresh = _ttk.Button(
-            self._frame_controls, text="Refresh", command=self._refresh_queue
+            self._frame_controls2, text="Refresh", command=self._refresh_queue
         )
         self._button_refresh.pack(side=_tk.LEFT, padx=2)
 
         # Delete selected button
         self._button_delete = _ttk.Button(
-            self._frame_controls,
+            self._frame_controls2,
             text="Delete Selected",
             command=self._delete_selected_job,
         )
@@ -78,7 +71,7 @@ class QueueWindow:
 
         # Move up button
         self._button_move_up = _ttk.Button(
-            self._frame_controls,
+            self._frame_controls2,
             text="Move Up",
             command=self._move_selected_up,
         )
@@ -86,7 +79,7 @@ class QueueWindow:
 
         # Move down button
         self._button_move_down = _ttk.Button(
-            self._frame_controls,
+            self._frame_controls2,
             text="Move Down",
             command=self._move_selected_down,
         )
@@ -113,12 +106,14 @@ class QueueWindow:
         # Treeview columns
         columns = (
             "job_id",
-            "input",
-            "output",
-            "architecture",
+            "dry",
+            "wet",
+            "size",
+            "filename",
             "status",
             "ESR",
-            "time",
+            "elapsed",
+            "remaining",
         )
         self._tree = _ttk.Treeview(
             self._tree_frame,
@@ -137,23 +132,27 @@ class QueueWindow:
 
         # Configure column widths
         self._tree.column("#0", width=0, stretch=False)  # Hide tree column
-        self._tree.column("job_id", width=60, minwidth=50)
-        self._tree.column("input", width=120, minwidth=80)
-        self._tree.column("output", width=120, minwidth=80)
-        self._tree.column("architecture", width=80, minwidth=60)
-        self._tree.column("status", width=120, minwidth=100)
-        self._tree.column("ESR", width=70, minwidth=50)
-        self._tree.column("time", width=70, minwidth=50)
+        self._tree.column("job_id", width=46, minwidth=50)
+        self._tree.column("dry", width=120, minwidth=80)
+        self._tree.column("wet", width=120, minwidth=80)
+        self._tree.column("size", width=40, minwidth=60)
+        self._tree.column("filename", width=150, minwidth=100)
+        self._tree.column("status", width=110, minwidth=80)
+        self._tree.column("ESR", width=60, minwidth=50)
+        self._tree.column("elapsed", width=70, minwidth=50)
+        self._tree.column("remaining", width=70, minwidth=50)
 
         # Headers
         self._tree.heading("#0", text="")
         self._tree.heading("job_id", text="ID")
-        self._tree.heading("input", text="Input")
-        self._tree.heading("output", text="Output")
-        self._tree.heading("architecture", text="Arch")
+        self._tree.heading("dry", text="Dry")
+        self._tree.heading("wet", text="Wet")
+        self._tree.heading("size", text="Size")
+        self._tree.heading("filename", text="File Name")
         self._tree.heading("status", text="Status")
         self._tree.heading("ESR", text="ESR")
-        self._tree.heading("time", text="Time")
+        self._tree.heading("elapsed", text="Elapsed")
+        self._tree.heading("remaining", text="Remaining")
 
         self._tree.pack(fill=_tk.BOTH, expand=True)
 
@@ -188,9 +187,7 @@ class QueueWindow:
         self._refresh_queue()
 
     def _update_status(self):
-        if self._queue.is_paused():
-            self._label_status.config(text="Queue is paused")
-        elif self._queue.is_running():
+        if self._queue.is_running():
             self._label_status.config(text="Queue is running")
         else:
             self._label_status.config(text="Queue is stopped")
@@ -221,19 +218,43 @@ class QueueWindow:
             else:
                 status_text = job.status.value
 
-            # Build ESR text
-            if job.current_esr is not None and job.status == JobStatus.PROCESSING:
-                esr_text = f"{job.current_esr:.4f}"
+            # Build ESR text - show best ESR during processing
+            if job.best_esr is not None:
+                esr_text = f"{job.best_esr:.4f}"
             elif job.esr is not None:
                 esr_text = f"{job.esr:.4f}"
             else:
                 esr_text = ""
 
-            # Build time text
-            if job.wall_time is not None:
-                time_text = f"{job.wall_time:.1f}s"
+            # Build elapsed time text
+            if job.status == JobStatus.PROCESSING and job.start_time is not None:
+                import time as _time_module
+                elapsed = _time_module.time() - job.start_time
+                elapsed_min = int(elapsed // 60)
+                elapsed_sec = int(elapsed % 60)
+                elapsed_text = f"{elapsed_min}m {elapsed_sec}s"
+            elif job.wall_time is not None:
+                elapsed_min = int(job.wall_time // 60)
+                elapsed_sec = int(job.wall_time % 60)
+                elapsed_text = f"{elapsed_min}m {elapsed_sec}s"
             else:
-                time_text = ""
+                elapsed_text = ""
+
+            # Build remaining time text (estimate based on epoch progress)
+            if job.status == JobStatus.PROCESSING and job.current_epoch is not None and job.start_time is not None:
+                import time as _time_module
+                elapsed = _time_module.time() - job.start_time
+                if job.current_epoch > 0:
+                    time_per_epoch = elapsed / job.current_epoch
+                    remaining_epochs = job.num_epochs - job.current_epoch
+                    remaining = time_per_epoch * remaining_epochs
+                    remaining_min = int(remaining // 60)
+                    remaining_sec = int(remaining % 60)
+                    remaining_text = f"{remaining_min}m {remaining_sec}s"
+                else:
+                    remaining_text = ""
+            else:
+                remaining_text = ""
 
             self._tree.insert(
                 "",
@@ -244,11 +265,23 @@ class QueueWindow:
                     _Path(job.input_path).name,
                     _Path(job.output_path).name,
                     job.architecture.value,
+                    job.get_basename(),
                     status_text,
                     esr_text,
-                    time_text,
+                    elapsed_text,
+                    remaining_text,
                 ),
             )
+
+        # Dynamically size filename column to fit longest name
+        max_len = 0
+        for job in self._queue.get_all_jobs():
+            basename = job.get_basename()
+            if len(basename) > max_len:
+                max_len = len(basename)
+        # Add some padding and use a reasonable max
+        col_width = min(max(max_len * 8, 100), 400)
+        self._tree.column("filename", width=col_width)
 
         # Update status bar
         running = self._queue.is_running()
@@ -266,8 +299,8 @@ class QueueWindow:
             self._label_status.config(
                 text=f"Running | Queued: {pending} | Done: {completed} | Failed: {failed}"
             )
-            # Schedule another refresh in 2 seconds if queue is running
-            self._root.after(2000, self._refresh_queue)
+            # Schedule another refresh in 500ms if queue is running
+            self._root.after(500, self._refresh_queue)
         else:
             self._label_status.config(
                 text=f"Stopped | Queued: {pending} | Done: {completed} | Failed: {failed}"
@@ -342,6 +375,8 @@ class QueueWindow:
         dialog.title("Add Training Job")
         dialog.geometry("750x700")
 
+        cfg = _config.load()
+
         # Helper function to create row with label on left and field on right
         def create_labeled_field(
             parent, label_text, var, is_file_path=False, is_directory=False, width=30
@@ -397,7 +432,7 @@ class QueueWindow:
         create_labeled_field(single_frame, "Output (reamped):", output_var, is_file_path=True)
 
         # Training destination row
-        dest_var = _tk.StringVar()
+        dest_var = _tk.StringVar(value=cfg.get("default_destination", ""))
         create_labeled_field(single_frame, "Destination:", dest_var, is_directory=True)
 
         # Batch mode frame (initially hidden)
@@ -468,21 +503,22 @@ class QueueWindow:
                 single_frame.pack_forget()
                 batch_frame.pack(fill=_tk.BOTH, expand=True, pady=10)
 
-        mode_var.trace("w", toggle_mode)
+        mode_var.trace_add("write", toggle_mode)
 
-        # Architecture section
+        # size section
         _ttk.Separator(dialog, orient=_tk.HORIZONTAL).pack(fill=_tk.X, padx=5, pady=10)
-        _ttk.Label(dialog, text="Architecture:").pack(anchor=_tk.W, padx=5, pady=3)
+        _ttk.Label(dialog, text="size:").pack(anchor=_tk.W, padx=5, pady=3)
         arch_frame = _ttk.Frame(dialog)
         arch_frame.pack(anchor=_tk.W, padx=5)
 
         arch_vars = {}
-        for arch in _core.Architecture:
-            var = _tk.BooleanVar()
+        default_archs = cfg.get("default_architectures", ["standard"])
+        for arch in reversed(_core.Architecture):
+            var = _tk.BooleanVar(value=arch.value in default_archs)
             check = _ttk.Checkbutton(
                 arch_frame, text=arch.value.capitalize(), variable=var
             )
-            check.pack(anchor=_tk.W, padx=2)
+            check.pack(side=_tk.LEFT, padx=5)
             arch_vars[arch] = var
 
         # Metadata section
@@ -508,20 +544,21 @@ class QueueWindow:
                     state="readonly",
                 )
                 combo.pack(side=_tk.LEFT)
-                combo.set("")
+                if not var.get():
+                    combo.set("")
             else:
                 entry = _ttk.Entry(frame, textvariable=var, width=width)
                 entry.pack(side=_tk.LEFT, fill=_tk.X, expand=True)
             return frame
 
         # Metadata fields
-        name_var = _tk.StringVar()
+        name_var = _tk.StringVar(value=cfg.get("model_name", ""))
         create_metadata_row(dialog, "Model name:", name_var)
 
-        modeled_by_var = _tk.StringVar()
+        modeled_by_var = _tk.StringVar(value=cfg.get("modeled_by", ""))
         create_metadata_row(dialog, "Modeled by:", modeled_by_var)
 
-        gear_type_var = _tk.StringVar()
+        gear_type_var = _tk.StringVar(value=cfg.get("gear_type", ""))
         create_metadata_row(
             dialog,
             "Gear type:",
@@ -530,13 +567,13 @@ class QueueWindow:
             combo_values=[g.value for g in _GearType] + [""],
         )
 
-        make_var = _tk.StringVar()
+        make_var = _tk.StringVar(value=cfg.get("gear_make", ""))
         create_metadata_row(dialog, "Gear make:", make_var)
 
-        model_var = _tk.StringVar()
+        model_var = _tk.StringVar(value=cfg.get("gear_model", ""))
         create_metadata_row(dialog, "Gear model:", model_var)
 
-        tone_var = _tk.StringVar()
+        tone_var = _tk.StringVar(value=cfg.get("tone_type", ""))
         create_metadata_row(
             dialog,
             "Tone type:",
@@ -551,14 +588,14 @@ class QueueWindow:
         _ttk.Label(level_frame, text="Input (dBu):", width=20, anchor=_tk.W).pack(
             side=_tk.LEFT
         )
-        input_level_var = _tk.StringVar()
+        input_level_var = _tk.StringVar(value=cfg.get("input_level_dbu", ""))
         _ttk.Entry(level_frame, textvariable=input_level_var, width=15).pack(
             side=_tk.LEFT, padx=5
         )
         _ttk.Label(level_frame, text="Output (dBu):", width=20, anchor=_tk.W).pack(
             side=_tk.LEFT, padx=(20, 0)
         )
-        output_level_var = _tk.StringVar()
+        output_level_var = _tk.StringVar(value=cfg.get("output_level_dbu", ""))
         _ttk.Entry(level_frame, textvariable=output_level_var, width=15).pack(
             side=_tk.LEFT, padx=5
         )
@@ -570,13 +607,13 @@ class QueueWindow:
         )
         template_frame = _ttk.Frame(dialog)
         template_frame.pack(fill=_tk.X, padx=5, pady=3)
-        output_template_var = _tk.StringVar(value="{input}_{arch}")
+        output_template_var = _tk.StringVar(value=cfg.get("output_template", "{guid}_{model}_{type}_{size}_{date}"))
         _ttk.Entry(template_frame, textvariable=output_template_var, width=50).pack(
             side=_tk.LEFT, fill=_tk.X, expand=True
         )
         _ttk.Label(
             dialog,
-            text="Tokens: {input} {arch} {date} {time} {creator} {gear_type} {guid}",
+            text="Tokens: {input} {size} {date} {time} {creator} {type} {guid} {model}",
             font=("Helvetica", 8),
         ).pack(anchor=_tk.W, padx=5)
 
@@ -586,7 +623,7 @@ class QueueWindow:
         _ttk.Label(batch_frame, text="Batch GUID:", width=20, anchor=_tk.W).pack(
             side=_tk.LEFT
         )
-        batch_guid_var = _tk.StringVar()
+        batch_guid_var = _tk.StringVar(value=_uuid.uuid4().hex[:8])
         _ttk.Entry(batch_frame, textvariable=batch_guid_var, width=30).pack(
             side=_tk.LEFT, fill=_tk.X, expand=True
         )
@@ -597,6 +634,21 @@ class QueueWindow:
         ).pack(side=_tk.RIGHT, padx=2)
 
         def on_add():
+            # Save settings to config
+            _config.save({
+                "default_architectures": [arch.value for arch, var in arch_vars.items() if var.get()],
+                "output_template": output_template_var.get(),
+                "default_destination": dest_var.get(),
+                "model_name": name_var.get(),
+                "modeled_by": modeled_by_var.get(),
+                "gear_type": gear_type_var.get(),
+                "gear_make": make_var.get(),
+                "gear_model": model_var.get(),
+                "tone_type": tone_var.get(),
+                "input_level_dbu": input_level_var.get(),
+                "output_level_dbu": output_level_var.get(),
+            })
+
             selected_archs = [arch for arch, var in arch_vars.items() if var.get()]
             if not selected_archs:
                 _tk.messagebox.showerror(
