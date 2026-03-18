@@ -1,5 +1,7 @@
 # NAM Trainer
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A batch processing GUI for neural-amp-modeler with queue management, progress monitoring, and customizable output filenames.
 
 ## Installation
