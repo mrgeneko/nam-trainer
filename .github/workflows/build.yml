@@ -13,6 +13,9 @@ on:
 
 jobs:
   build:
+    runs-on: ${{ matrix.os }}
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     strategy:
       fail-fast: false
       matrix:
@@ -29,8 +32,6 @@ jobs:
             name: linux
             artifact: NAMTrainer-Linux
             extension: tar.gz
-
-    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
