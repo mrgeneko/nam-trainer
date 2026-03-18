@@ -73,20 +73,8 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           cd dist
-          # Create .app bundle if it exists
-          if [ -d "NAMTrainer.app" ]; then
-            # Remove .app from the zip to keep structure clean
-            mkdir -p NAMTrainer-macOS/NAMTrainer.app
-            mv NAMTrainer.app/* NAMTrainer-macOS/NAMTrainer.app/
-            rm -rf NAMTrainer.app
-          fi
-          cd ..
-          if [ -d "dist/NAMTrainer-macOS" ]; then
-            zip -r NAMTrainer-macOS.zip NAMTrainer-macOS
-          else
-            zip -r NAMTrainer.zip dist/NAMTrainer.app
-            mv NAMTrainer.zip NAMTrainer-macOS.zip
-          fi
+          # Create zip of the .app bundle
+          zip -r NAMTrainer-macOS.zip NAMTrainer.app
 
       - name: Prepare artifact (Windows)
         if: matrix.os == 'windows-latest'
