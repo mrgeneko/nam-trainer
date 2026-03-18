@@ -310,19 +310,15 @@ class TrainingQueue:
     def _process_job(self, job: TrainingJob):
         job.status = JobStatus.PROCESSING
         job.start_time = _time.time()
-        print(f"DEBUG: Starting job {job.job_id}, status={job.status}")
 
         try:
             self._do_train_subprocess(job)
             # Check status before marking as completed
-            print(f"DEBUG: After subprocess, status={job.status}, stop_requested={self._stop_requested}")
             if job.status == JobStatus.QUEUED:
                 # Job was stopped for retry, keep it queued
-                print(f"DEBUG: Keeping job {job.job_id} as QUEUED")
                 pass
             elif self._stop_requested:
                 job.status = JobStatus.CANCELLED
-                print(f"DEBUG: Setting job {job.job_id} to CANCELLED")
             else:
                 job.status = JobStatus.COMPLETED
                 # Save final ESR
