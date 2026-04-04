@@ -7,7 +7,7 @@ set -e
 cd "$(dirname "$0")"
 
 # Find Python interpreter (try in order of preference)
-for python_cmd in python3 python python3.12 python3.11 python3.10; do
+for python_cmd in python3.12 python3.11 python3.10 python3 python; do
     if command -v "$python_cmd" &> /dev/null; then
         PYTHON_CMD="$python_cmd"
         break

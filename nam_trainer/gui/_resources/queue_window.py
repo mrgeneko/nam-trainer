@@ -461,6 +461,23 @@ class QueueWindow:
             check.pack(side=_tk.LEFT, padx=5)
             arch_vars[arch] = var
 
+        # Training settings section
+        _ttk.Separator(dialog, orient=_tk.HORIZONTAL).pack(fill=_tk.X, padx=5, pady=10)
+        _ttk.Label(dialog, text="Training Settings:").pack(anchor=_tk.W, padx=5, pady=3)
+
+        training_frame = _ttk.Frame(dialog)
+        training_frame.pack(fill=_tk.X, padx=5, pady=3)
+        _ttk.Label(training_frame, text="Max Epochs:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
+        num_epochs_var = _tk.StringVar(value=cfg.get("num_epochs", "100"))
+        _ttk.Entry(training_frame, textvariable=num_epochs_var, width=15).pack(side=_tk.LEFT, padx=5)
+
+        esr_frame = _ttk.Frame(dialog)
+        esr_frame.pack(fill=_tk.X, padx=5, pady=3)
+        _ttk.Label(esr_frame, text="ESR Threshold (optional):", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
+        esr_threshold_var = _tk.StringVar(value=cfg.get("esr_threshold", ""))
+        _ttk.Entry(esr_frame, textvariable=esr_threshold_var, width=15).pack(side=_tk.LEFT, padx=5)
+        _ttk.Label(esr_frame, text="Stop if ESR below this", font=("Helvetica", 8)).pack(side=_tk.LEFT, padx=5)
+
         # Metadata section
         _ttk.Separator(dialog, orient=_tk.HORIZONTAL).pack(fill=_tk.X, padx=5, pady=10)
         _ttk.Label(dialog, text="Metadata (optional):").pack(
@@ -556,6 +573,8 @@ class QueueWindow:
                 "tone_type": tone_var.get(),
                 "input_level_dbu": input_level_var.get(),
                 "output_level_dbu": output_level_var.get(),
+                "num_epochs": num_epochs_var.get(),
+                "esr_threshold": esr_threshold_var.get(),
             })
 
             selected_archs = [arch for arch, var in arch_vars.items() if var.get()]
@@ -587,6 +606,12 @@ class QueueWindow:
                 float(output_level_var.get()) if output_level_var.get() else None
             )
 
+            # Parse training settings
+            num_epochs = int(num_epochs_var.get()) if num_epochs_var.get() else 100
+            esr_threshold = (
+                float(esr_threshold_var.get()) if esr_threshold_var.get() else None
+            )
+
             batch_guid = batch_guid_var.get() if batch_guid_var.get() else None
 
             # Get input and output paths
@@ -613,6 +638,8 @@ class QueueWindow:
                     output_path=output_path,
                     train_destination=train_dest,
                     architecture=arch,
+                    num_epochs=num_epochs,
+                    esr_threshold=esr_threshold,
                     output_template=output_template_var.get(),
                     batch_guid=batch_guid,
                     model_name=name_var.get() if name_var.get() else None,

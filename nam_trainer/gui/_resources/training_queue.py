@@ -51,6 +51,7 @@ class TrainingJob:
     train_destination: _Path
     architecture: _core.Architecture
     num_epochs: int = 100  # Default epochs for queue jobs
+    esr_threshold: _Optional[float] = None  # Stop training if ESR is better than this
 
     # Output filename template
     output_template: str = "{input}_{arch}"  # Default template
@@ -568,6 +569,7 @@ class TrainingQueue:
                     "max_epochs": job.num_epochs,
                 },
                 "trainer_fit_kwargs": {},
+                "esr_threshold": job.esr_threshold,
             }
 
             # Write config files
