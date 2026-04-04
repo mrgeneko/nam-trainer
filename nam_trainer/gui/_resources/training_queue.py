@@ -90,6 +90,7 @@ class TrainingJob:
     current_epoch: _Optional[int] = None
     current_esr: _Optional[float] = None
     best_esr: _Optional[float] = None
+    best_epoch: _Optional[int] = None
 
     def resolve_output_filename(self) -> str:
         """Resolve the output template using job fields."""
@@ -187,6 +188,7 @@ class TrainingQueue:
                 job.current_epoch = None
                 job.current_esr = None
                 job.best_esr = None
+                job.best_epoch = None
 
     def get_job(self, job_id: str) -> _Optional[TrainingJob]:
         return self._jobs.get(job_id)
@@ -769,6 +771,7 @@ class TrainingQueue:
 
         seen_files = set()
         esr_pattern = _re.compile(r"ESR[=_]([0-9.eE+-]+)", _re.IGNORECASE)
+        epoch_pattern = _re.compile(r"epoch[=_](\d+)", _re.IGNORECASE)
 
         while not self._stop_requested:
             try:
@@ -784,6 +787,14 @@ class TrainingQueue:
                             job.current_esr = esr_value
                             if job.best_esr is None or esr_value < job.best_esr:
                                 job.best_esr = esr_value
+
+                        # Parse epoch from filename
+                        epoch_match = epoch_pattern.search(ckpt_file.name)
+                        if epoch_match:
+                            epoch_val = int(epoch_match.group(1))
+                            job.best_epoch = epoch_val
+                            if job.current_epoch is None or epoch_val > job.current_epoch:
+                                job.current_epoch = epoch_val
 
                 _time.sleep(1)  # Check every second
             except Exception:
