@@ -463,8 +463,6 @@ class QueueWindow:
         # Architecture section container - holds both A1 and A2 options in same location
         arch_container = _ttk.Frame(dialog)
         arch_container.pack(fill=_tk.X, padx=5, pady=5)
-        arch_sep = _ttk.Separator(dialog, orient=_tk.HORIZONTAL)
-        arch_sep.pack(fill=_tk.X, padx=5, pady=5)
 
         # A1: Size selection
         a1_frame = _ttk.Frame(arch_container)
