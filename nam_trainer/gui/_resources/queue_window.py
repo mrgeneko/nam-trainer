@@ -502,10 +502,13 @@ class QueueWindow:
 
         version_var.trace_add("write", on_version_change)
 
-        # Architecture section
-        _ttk.Separator(dialog, orient=_tk.HORIZONTAL).pack(fill=_tk.X, padx=5, pady=10)
-        _ttk.Label(dialog, text="size:").pack(anchor=_tk.W, padx=5, pady=3)
-        arch_frame = _ttk.Frame(dialog)
+        # Architecture section (only for A1)
+        arch_section = _ttk.Frame(dialog)
+        arch_section.pack(fill=_tk.X, padx=5, pady=5)
+        arch_sep = _ttk.Separator(dialog, orient=_tk.HORIZONTAL)
+        arch_sep.pack(fill=_tk.X, padx=5, pady=5)
+        _ttk.Label(arch_section, text="size:").pack(anchor=_tk.W, padx=5, pady=3)
+        arch_frame = _ttk.Frame(arch_section)
         arch_frame.pack(anchor=_tk.W, padx=5)
 
         arch_vars = {}
@@ -517,6 +520,16 @@ class QueueWindow:
             )
             check.pack(side=_tk.LEFT, padx=5)
             arch_vars[arch] = var
+
+        def on_version_change_arch(*args):
+            if version_var.get() == "a2":
+                arch_section.pack_forget()
+                arch_sep.pack_forget()
+            else:
+                arch_section.pack(fill=_tk.X, padx=5, pady=5)
+                arch_sep.pack(fill=_tk.X, padx=5, pady=5)
+
+        version_var.trace_add("write", on_version_change_arch)
 
         # Training settings section
         _ttk.Separator(dialog, orient=_tk.HORIZONTAL).pack(fill=_tk.X, padx=5, pady=10)
@@ -635,7 +648,7 @@ class QueueWindow:
             })
 
             selected_archs = [arch for arch, var in arch_vars.items() if var.get()]
-            if not selected_archs:
+            if not selected_archs and version_var.get() == "a1":
                 _tk.messagebox.showerror(
                     "Error", "Please select at least one architecture"
                 )
@@ -674,6 +687,11 @@ class QueueWindow:
             # Parse architecture version (A1 or A2)
             from training_queue import ArchitectureVersion
             arch_version = ArchitectureVersion.A2 if version_var.get() == "a2" else ArchitectureVersion.A1
+
+            # For A2, use standard architecture as default base
+            # (the size is determined by allowed_channels, not the legacy sizes)
+            if arch_version == ArchitectureVersion.A2:
+                selected_archs = [_core.Architecture.STANDARD]
 
             # Parse slimmable config for A2
             slimmable_config = None
