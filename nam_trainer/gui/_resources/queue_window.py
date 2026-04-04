@@ -741,8 +741,10 @@ class QueueWindow:
             self._refresh_queue()
             dialog.destroy()
 
-        _ttk.Button(dialog, text="Add to Queue", command=on_add).pack(pady=10)
-        _ttk.Button(dialog, text="Cancel", command=dialog.destroy).pack()
+        button_frame = _ttk.Frame(dialog)
+        button_frame.pack(pady=10)
+        _ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=_tk.LEFT, padx=5)
+        _ttk.Button(button_frame, text="Add to Queue", command=on_add).pack(side=_tk.LEFT, padx=5)
 
     def close(self):
         self._root.destroy()
