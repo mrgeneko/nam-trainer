@@ -90,7 +90,6 @@ class TrainingJob:
     current_epoch: _Optional[int] = None
     current_esr: _Optional[float] = None
     best_esr: _Optional[float] = None
-    best_epoch: _Optional[int] = None
 
     def resolve_output_filename(self) -> str:
         """Resolve the output template using job fields."""
@@ -188,7 +187,6 @@ class TrainingQueue:
                 job.current_epoch = None
                 job.current_esr = None
                 job.best_esr = None
-                job.best_epoch = None
 
     def get_job(self, job_id: str) -> _Optional[TrainingJob]:
         return self._jobs.get(job_id)
@@ -766,12 +764,11 @@ class TrainingQueue:
                         # shutil.rmtree(timestamp_dir)
 
     def _monitor_checkpoints(self, job: TrainingJob, job_dir: _Path):
-        """Monitor checkpoint directory for new files and extract ESR."""
+        """Monitor checkpoint directory for new files and extract best ESR."""
         import time as _time
 
         seen_files = set()
         esr_pattern = _re.compile(r"ESR[=_]([0-9.eE+-]+)", _re.IGNORECASE)
-        epoch_pattern = _re.compile(r"epoch[=_](\d+)", _re.IGNORECASE)
 
         while not self._stop_requested:
             try:
@@ -780,21 +777,13 @@ class TrainingQueue:
                     if ckpt_file.name not in seen_files:
                         seen_files.add(ckpt_file.name)
 
-                        # Parse ESR from filename
+                        # Parse ESR from filename for best tracking
                         esr_match = esr_pattern.search(ckpt_file.name)
                         if esr_match:
                             esr_value = float(esr_match.group(1))
                             job.current_esr = esr_value
                             if job.best_esr is None or esr_value < job.best_esr:
                                 job.best_esr = esr_value
-
-                        # Parse epoch from filename
-                        epoch_match = epoch_pattern.search(ckpt_file.name)
-                        if epoch_match:
-                            epoch_val = int(epoch_match.group(1))
-                            job.best_epoch = epoch_val
-                            if job.current_epoch is None or epoch_val > job.current_epoch:
-                                job.current_epoch = epoch_val
 
                 _time.sleep(1)  # Check every second
             except Exception:

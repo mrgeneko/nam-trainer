@@ -203,12 +203,9 @@ class QueueWindow:
         for job in self._queue.get_all_jobs():
             # Build status text
             if job.status == JobStatus.PROCESSING:
-                if job.current_epoch is not None or job.best_esr is not None:
-                    # Show best epoch from checkpoints if available, otherwise use current
-                    status_text = f"Epoch {job.best_epoch if hasattr(job, 'best_epoch') and job.best_epoch else job.current_epoch or '?'}/{job.num_epochs}"
-                    if job.best_esr is not None:
-                        status_text += f" ESR:{job.best_esr:.4f}"
-                    elif job.current_esr is not None:
+                if job.current_epoch is not None:
+                    status_text = f"Epoch {job.current_epoch}/{job.num_epochs}"
+                    if job.current_esr is not None:
                         status_text += f" ESR:{job.current_esr:.4f}"
                 else:
                     status_text = "Processing..."
