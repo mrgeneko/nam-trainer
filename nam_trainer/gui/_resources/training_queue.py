@@ -541,8 +541,8 @@ class TrainingQueue:
                 if job.slimmable_config and "allowed_channels" in job.slimmable_config:
                     allowed_channels = job.slimmable_config["allowed_channels"]
                 else:
-                    # Default: allow from 3 channels up to base_channels
-                    allowed_channels = list(range(3, base_channels + 1))
+                    # Default: match reference config - just min and max
+                    allowed_channels = [3, base_channels]
 
                 boosting = (
                     job.slimmable_config.get("boosting", True)
@@ -576,26 +576,10 @@ class TrainingQueue:
                     }
                 ]
 
-            # Create data config with proper splits
-            # Use same structure as GUI trainer
-            # Determine appropriate split points (90% train, 10% validation)
-            # We'll use the stop_samples approach
-            data_config = {
-                "train": {
-                    "ny": 8192,  # Use default from core._NY_DEFAULT
-                    "stop_samples": None,  # Will use 90% of data
-                },
-                "validation": {
-                    "ny": None,
-                    "start_samples": None,  # Will use last 10% of data
-                },
-                "common": {
-                    "x_path": str(job.input_path),
-                    "y_path": str(job.output_path),
-                    "delay": 0,
-                    "allow_unequal_lengths": True,
-                },
-            }
+                # Use reference config head_scale
+                head_scale = 0.01
+            else:
+                head_scale = 0.02
 
             # Create model config using proper two-layer structure
             model_config = {
@@ -603,7 +587,7 @@ class TrainingQueue:
                     "name": "WaveNet",
                     "config": {
                         "layers_configs": layers_configs,
-                        "head_scale": 0.02,
+                        "head_scale": head_scale,
                     },
                 },
                 "loss": {"val_loss": "esr"},
