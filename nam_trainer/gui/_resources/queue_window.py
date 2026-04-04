@@ -534,12 +534,10 @@ class QueueWindow:
         num_epochs_var = _tk.StringVar(value=cfg.get("num_epochs", "100"))
         _ttk.Entry(training_frame, textvariable=num_epochs_var, width=15).pack(side=_tk.LEFT, padx=5)
 
-        esr_frame = _ttk.Frame(dialog)
-        esr_frame.pack(fill=_tk.X, padx=5, pady=3)
-        _ttk.Label(esr_frame, text="ESR Threshold (optional):", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
+        _ttk.Label(training_frame, text="ESR Threshold (optional):", width=20, anchor=_tk.W).pack(side=_tk.LEFT, padx=(20, 5))
         esr_threshold_var = _tk.StringVar(value=cfg.get("esr_threshold", ""))
-        _ttk.Entry(esr_frame, textvariable=esr_threshold_var, width=15).pack(side=_tk.LEFT, padx=5)
-        _ttk.Label(esr_frame, text="Stop if ESR below this", font=("Helvetica", 8)).pack(side=_tk.LEFT, padx=5)
+        _ttk.Entry(training_frame, textvariable=esr_threshold_var, width=15).pack(side=_tk.LEFT, padx=5)
+        _ttk.Label(training_frame, text="Stop if ESR below this", font=("Helvetica", 8)).pack(side=_tk.LEFT, padx=5)
 
         # Metadata section
         _ttk.Separator(dialog, orient=_tk.HORIZONTAL).pack(fill=_tk.X, padx=5, pady=10)
