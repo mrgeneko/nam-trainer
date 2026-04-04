@@ -18,7 +18,7 @@ try:
     from nam.train import core as _core
     from nam.models.metadata import GearType as _GearType
     from nam.models.metadata import ToneType as _ToneType
-    from training_queue import TrainingQueue, TrainingJob, JobStatus
+    from training_queue import TrainingQueue, TrainingJob, JobStatus, ArchitectureVersion
 except ImportError:
     pass
 
@@ -445,6 +445,63 @@ class QueueWindow:
             command=lambda: batch_guid_var.set(_uuid.uuid4().hex[:8]),
         ).pack(side=_tk.RIGHT, padx=2)
 
+        # Architecture Version (A1/A2)
+        version_frame = _ttk.Frame(dialog)
+        version_frame.pack(fill=_tk.X, padx=5, pady=5)
+        _ttk.Label(version_frame, text="Architecture Version:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
+        version_var = _tk.StringVar(value="a1")
+        version_combo = _ttk.Combobox(
+            version_frame,
+            textvariable=version_var,
+            values=["a1", "a2"],
+            width=10,
+            state="readonly"
+        )
+        version_combo.pack(side=_tk.LEFT, padx=5)
+        version_combo.set("a1")
+
+        # Slimmable options frame (shown only for A2)
+        slimmable_frame = _ttk.LabelFrame(dialog, text="A2 Slimmable Options", padding=5)
+        slimmable_frame.pack(fill=_tk.X, padx=5, pady=5)
+
+        allowed_frame = _ttk.Frame(slimmable_frame)
+        allowed_frame.pack(fill=_tk.X, padx=5, pady=3)
+        _ttk.Label(allowed_frame, text="Allowed Channels:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
+        allowed_channels_var = _tk.StringVar(value="3,6,12")
+        _ttk.Entry(allowed_frame, textvariable=allowed_channels_var, width=20).pack(side=_tk.LEFT, padx=5)
+        _ttk.Label(allowed_frame, text="(e.g., 3,6,12)", font=("Helvetica", 8)).pack(side=_tk.LEFT)
+
+        boosting_frame = _ttk.Frame(slimmable_frame)
+        boosting_frame.pack(fill=_tk.X, padx=5, pady=3)
+        _ttk.Label(boosting_frame, text="Boosting:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
+        boosting_var = _tk.BooleanVar(value=True)
+        _ttk.Checkbutton(boosting_frame, variable=boosting_var).pack(side=_tk.LEFT)
+
+        init_frame = _ttk.Frame(slimmable_frame)
+        init_frame.pack(fill=_tk.X, padx=5, pady=3)
+        _ttk.Label(init_frame, text="Init Strategy:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
+        init_strategy_var = _tk.StringVar(value="smallest_and_zeros")
+        init_combo = _ttk.Combobox(
+            init_frame,
+            textvariable=init_strategy_var,
+            values=["smallest_and_zeros", "channel_causal"],
+            width=18,
+            state="readonly"
+        )
+        init_combo.pack(side=_tk.LEFT, padx=5)
+        init_combo.set("smallest_and_zeros")
+
+        # Hide slimmable frame initially (A1 selected by default)
+        slimmable_frame.pack_forget()
+
+        def on_version_change(*args):
+            if version_var.get() == "a2":
+                slimmable_frame.pack(fill=_tk.X, padx=5, pady=5)
+            else:
+                slimmable_frame.pack_forget()
+
+        version_var.trace_add("write", on_version_change)
+
         # Architecture section
         _ttk.Separator(dialog, orient=_tk.HORIZONTAL).pack(fill=_tk.X, padx=5, pady=10)
         _ttk.Label(dialog, text="size:").pack(anchor=_tk.W, padx=5, pady=3)
@@ -614,6 +671,24 @@ class QueueWindow:
 
             batch_guid = batch_guid_var.get() if batch_guid_var.get() else None
 
+            # Parse architecture version (A1 or A2)
+            from training_queue import ArchitectureVersion
+            arch_version = ArchitectureVersion.A2 if version_var.get() == "a2" else ArchitectureVersion.A1
+
+            # Parse slimmable config for A2
+            slimmable_config = None
+            if arch_version == ArchitectureVersion.A2:
+                allowed_str = allowed_channels_var.get().strip()
+                if allowed_str:
+                    allowed_channels = [int(x.strip()) for x in allowed_str.split(",") if x.strip()]
+                else:
+                    allowed_channels = [3, 6, 12]
+                slimmable_config = {
+                    "allowed_channels": allowed_channels,
+                    "boosting": boosting_var.get(),
+                    "init_strategy": init_strategy_var.get(),
+                }
+
             # Get input and output paths
             input_path = _Path(input_var.get())
             output_path = _Path(output_var.get())
@@ -640,6 +715,8 @@ class QueueWindow:
                     architecture=arch,
                     num_epochs=num_epochs,
                     esr_threshold=esr_threshold,
+                    architecture_version=arch_version,
+                    slimmable_config=slimmable_config,
                     output_template=output_template_var.get(),
                     batch_guid=batch_guid,
                     model_name=name_var.get() if name_var.get() else None,

@@ -41,6 +41,11 @@ class JobStatus(_Enum):
     CANCELLED = "cancelled"
 
 
+class ArchitectureVersion(_Enum):
+    A1 = "a1"
+    A2 = "a2"
+
+
 @_dataclass
 class TrainingJob:
     """Represents a single training job in the queue."""
@@ -52,6 +57,8 @@ class TrainingJob:
     architecture: _core.Architecture
     num_epochs: int = 100  # Default epochs for queue jobs
     esr_threshold: _Optional[float] = None  # Stop training if ESR is better than this
+    architecture_version: ArchitectureVersion = ArchitectureVersion.A1  # A1 or A2
+    slimmable_config: _Optional[_Dict] = None  # Slimmable config for A2 models
 
     # Output filename template
     output_template: str = "{input}_{arch}"  # Default template
@@ -518,6 +525,55 @@ class TrainingQueue:
                         "activation": "Tanh",
                         "head_bias": True,
                     },
+                ]
+
+            # A2 Slimmable model configuration
+            if job.architecture_version == ArchitectureVersion.A2:
+                # A2 uses LeakyReLU and slimmable channel-slicing
+                base_channels = {
+                    "standard": 12,
+                    "lite": 10,
+                    "feather": 8,
+                    "nano": 6,
+                }.get(job.architecture.value, 12)
+
+                # Determine allowed channels (for slimmable)
+                if job.slimmable_config and "allowed_channels" in job.slimmable_config:
+                    allowed_channels = job.slimmable_config["allowed_channels"]
+                else:
+                    # Default: allow from 3 channels up to base_channels
+                    allowed_channels = list(range(3, base_channels + 1))
+
+                boosting = (
+                    job.slimmable_config.get("boosting", True)
+                    if job.slimmable_config
+                    else True
+                )
+                init_strategy = (
+                    job.slimmable_config.get("init_strategy", "smallest_and_zeros")
+                    if job.slimmable_config
+                    else "smallest_and_zeros"
+                )
+
+                layers_configs = [
+                    {
+                        "input_size": 1,
+                        "condition_size": 1,
+                        "channels": base_channels,
+                        "head_size": 1,
+                        "kernel_size": 6,
+                        "dilations": [1, 5, 29, 97, 227, 1, 5, 29, 97, 227, 1, 5, 29, 97, 227],
+                        "activation": "LeakyReLU",
+                        "head_bias": True,
+                        "slimmable": {
+                            "method": "slice_channels_uniform",
+                            "kwargs": {
+                                "allowed_channels": allowed_channels,
+                                "boosting": boosting,
+                                "init_strategy": init_strategy,
+                            },
+                        },
+                    }
                 ]
 
             # Create data config with proper splits
