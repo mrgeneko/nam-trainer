@@ -8,7 +8,7 @@ _CONFIG_FILE = _CONFIG_DIR / "settings.json"
 _DEFAULTS: Dict[str, Any] = {
     "default_architectures": ["standard"],
     "architecture_version": "a1",
-    "allowed_channels": "3,12",
+    "allowed_channels": "2,8",
     "boosting": True,
     "init_strategy": "smallest_and_zeros",
     "num_epochs": "100",

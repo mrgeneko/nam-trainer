@@ -486,9 +486,9 @@ class QueueWindow:
         allowed_frame = _ttk.Frame(a2_frame)
         allowed_frame.pack(fill=_tk.X, padx=5, pady=3)
         _ttk.Label(allowed_frame, text="Allowed Channels:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
-        allowed_channels_var = _tk.StringVar(value=cfg.get("allowed_channels", "3,12"))
+        allowed_channels_var = _tk.StringVar(value=cfg.get("allowed_channels", "2,8"))
         _ttk.Entry(allowed_frame, textvariable=allowed_channels_var, width=20).pack(side=_tk.LEFT, padx=5)
-        _ttk.Label(allowed_frame, text="(e.g., 3,12)", font=("Helvetica", 8)).pack(side=_tk.LEFT)
+        _ttk.Label(allowed_frame, text="(e.g., 2,8)", font=("Helvetica", 8)).pack(side=_tk.LEFT)
 
         boosting_frame = _ttk.Frame(a2_frame)
         boosting_frame.pack(fill=_tk.X, padx=5, pady=3)

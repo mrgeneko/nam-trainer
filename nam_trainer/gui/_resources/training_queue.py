@@ -529,20 +529,20 @@ class TrainingQueue:
 
             # A2 Slimmable model configuration
             if job.architecture_version == ArchitectureVersion.A2:
-                # A2 uses LeakyReLU and slimmable channel-slicing
+                # A2 uses slimmable WaveNet - match reference config from Atkinson repo
                 base_channels = {
-                    "standard": 12,
-                    "lite": 10,
-                    "feather": 8,
-                    "nano": 6,
-                }.get(job.architecture.value, 12)
+                    "standard": 8,
+                    "lite": 6,
+                    "feather": 4,
+                    "nano": 2,
+                }.get(job.architecture.value, 8)
 
                 # Determine allowed channels (for slimmable)
                 if job.slimmable_config and "allowed_channels" in job.slimmable_config:
                     allowed_channels = job.slimmable_config["allowed_channels"]
                 else:
-                    # Default: match reference config - just min and max
-                    allowed_channels = [3, base_channels]
+                    # Default: match reference config
+                    allowed_channels = [2, base_channels]
 
                 boosting = (
                     job.slimmable_config.get("boosting", True)
@@ -562,8 +562,9 @@ class TrainingQueue:
                         "channels": base_channels,
                         "head_size": 1,
                         "kernel_size": 6,
-                        "dilations": [1, 5, 29, 97, 227, 1, 5, 29, 97, 227, 1, 5, 29, 97, 227],
-                        "activation": "LeakyReLU",
+                        "dilations": [1, 4, 16, 64, 256, 1, 4, 16, 64, 256, 1, 4, 16, 64, 256],
+                        "activation": "Tanh",
+                        "gated": False,
                         "head_bias": True,
                         "slimmable": {
                             "method": "slice_channels_uniform",
@@ -578,8 +579,11 @@ class TrainingQueue:
 
                 # Use reference config head_scale
                 head_scale = 0.01
+                # Add loss config from reference
+                loss_config = {"mrstft_weight": 2.0e-4}
             else:
                 head_scale = 0.02
+                loss_config = {}
 
             # Create data config with proper splits
             data_config = {
@@ -608,8 +612,9 @@ class TrainingQueue:
                         "head_scale": head_scale,
                     },
                 },
+                "loss": loss_config if loss_config else None,
                 "optimizer": {"lr": 0.004},
-                "lr_scheduler": {"class": "ExponentialLR", "kwargs": {"gamma": 0.993}},
+                "lr_scheduler": {"class": "ExponentialLR", "kwargs": {"gamma": 0.994}},
             }
 
             # Create learning config
@@ -637,7 +642,9 @@ class TrainingQueue:
             with open(data_config_path, "w") as fp:
                 _json.dump(data_config, fp)
             with open(model_config_path, "w") as fp:
-                _json.dump(model_config, fp)
+                # Remove None values from model_config
+                model_config_clean = {k: v for k, v in model_config.items() if v is not None}
+                _json.dump(model_config_clean, fp)
             with open(learning_config_path, "w") as fp:
                 _json.dump(learning_config, fp)
 
