@@ -569,7 +569,7 @@ class TrainingQueue:
                         "dilations": [1, 4, 16, 64, 256, 1, 4, 16, 64, 256, 1, 4, 16, 64, 256],
                         "activation": "Tanh",
                         "gated": False,
-                        "head_bias": True,
+                        "head_bias": False,
                         "slimmable": {
                             "method": "slice_channels_uniform",
                             "kwargs": {
@@ -578,7 +578,26 @@ class TrainingQueue:
                                 "init_strategy": init_strategy,
                             },
                         },
-                    }
+                    },
+                    {
+                        "condition_size": 1,
+                        "input_size": base_channels,
+                        "channels": base_channels // 2,
+                        "head_size": 1,
+                        "kernel_size": 6,
+                        "dilations": [1, 4, 16, 64, 256, 1, 4, 16, 64, 256, 1, 4, 16, 64, 256],
+                        "activation": "Tanh",
+                        "gated": False,
+                        "head_bias": True,
+                        "slimmable": {
+                            "method": "slice_channels_uniform",
+                            "kwargs": {
+                                "allowed_channels": [c // 2 for c in allowed_channels],
+                                "boosting": boosting,
+                                "init_strategy": init_strategy,
+                            },
+                        },
+                    },
                 ]
 
                 # Use reference config head_scale
