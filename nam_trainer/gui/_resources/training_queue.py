@@ -539,7 +539,11 @@ class TrainingQueue:
 
                 # Determine allowed channels (for slimmable)
                 if job.slimmable_config and "allowed_channels" in job.slimmable_config:
-                    allowed_channels = job.slimmable_config["allowed_channels"]
+                    user_channels = job.slimmable_config["allowed_channels"]
+                    # Validate: clamp to max base_channels
+                    allowed_channels = [min(c, base_channels) for c in user_channels]
+                    # Remove duplicates while preserving order
+                    allowed_channels = list(dict.fromkeys(allowed_channels))
                 else:
                     # Default: match reference config
                     allowed_channels = [2, base_channels]
