@@ -369,7 +369,7 @@ class QueueWindow:
         """Open dialog to add a new job to the queue."""
         dialog = _tk.Toplevel(self._root)
         dialog.title("Add Job")
-        dialog.geometry("750x770")
+        dialog.geometry("750x810")
 
         cfg = _config.load() if _config else {}
 
