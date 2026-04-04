@@ -599,7 +599,7 @@ class TrainingQueue:
                 },
             }
 
-            # Create model config using proper two-layer structure
+            # Create model config - match reference slimmable config structure
             model_config = {
                 "net": {
                     "name": "WaveNet",
@@ -608,7 +608,6 @@ class TrainingQueue:
                         "head_scale": head_scale,
                     },
                 },
-                "loss": {"val_loss": "esr"},
                 "optimizer": {"lr": 0.004},
                 "lr_scheduler": {"class": "ExponentialLR", "kwargs": {"gamma": 0.993}},
             }
