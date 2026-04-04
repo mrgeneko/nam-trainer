@@ -7,6 +7,12 @@ _CONFIG_FILE = _CONFIG_DIR / "settings.json"
 
 _DEFAULTS: Dict[str, Any] = {
     "default_architectures": ["standard"],
+    "architecture_version": "a1",
+    "allowed_channels": "3,12",
+    "boosting": True,
+    "init_strategy": "smallest_and_zeros",
+    "num_epochs": "100",
+    "esr_threshold": "",
     "output_template": "__ID_{guid}__{model}_{type}_{size}_{date}",
     "dry_path": "",
     "wet_path": "",

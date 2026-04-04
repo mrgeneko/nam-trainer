@@ -458,7 +458,7 @@ class QueueWindow:
             state="readonly"
         )
         version_combo.pack(side=_tk.LEFT, padx=5)
-        version_combo.set("a1")
+        version_combo.set(cfg.get("architecture_version", "a1"))
 
         # Architecture section container - holds both A1 and A2 options in same location
         arch_container = _ttk.Frame(dialog)
@@ -486,20 +486,20 @@ class QueueWindow:
         allowed_frame = _ttk.Frame(a2_frame)
         allowed_frame.pack(fill=_tk.X, padx=5, pady=3)
         _ttk.Label(allowed_frame, text="Allowed Channels:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
-        allowed_channels_var = _tk.StringVar(value="3,12")
+        allowed_channels_var = _tk.StringVar(value=cfg.get("allowed_channels", "3,12"))
         _ttk.Entry(allowed_frame, textvariable=allowed_channels_var, width=20).pack(side=_tk.LEFT, padx=5)
         _ttk.Label(allowed_frame, text="(e.g., 3,12)", font=("Helvetica", 8)).pack(side=_tk.LEFT)
 
         boosting_frame = _ttk.Frame(a2_frame)
         boosting_frame.pack(fill=_tk.X, padx=5, pady=3)
         _ttk.Label(boosting_frame, text="Boosting:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
-        boosting_var = _tk.BooleanVar(value=True)
+        boosting_var = _tk.BooleanVar(value=cfg.get("boosting", True))
         _ttk.Checkbutton(boosting_frame, variable=boosting_var).pack(side=_tk.LEFT)
 
         init_frame = _ttk.Frame(a2_frame)
         init_frame.pack(fill=_tk.X, padx=5, pady=3)
         _ttk.Label(init_frame, text="Init Strategy:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
-        init_strategy_var = _tk.StringVar(value="smallest_and_zeros")
+        init_strategy_var = _tk.StringVar(value=cfg.get("init_strategy", "smallest_and_zeros"))
         init_combo = _ttk.Combobox(
             init_frame,
             textvariable=init_strategy_var,
@@ -621,6 +621,10 @@ class QueueWindow:
             # Save settings to config
             _config.save({
                 "default_architectures": [arch.value for arch, var in arch_vars.items() if var.get()],
+                "architecture_version": version_var.get(),
+                "allowed_channels": allowed_channels_var.get(),
+                "boosting": boosting_var.get(),
+                "init_strategy": init_strategy_var.get(),
                 "output_template": output_template_var.get(),
                 "dry_path": input_var.get(),
                 "wet_path": output_var.get(),
