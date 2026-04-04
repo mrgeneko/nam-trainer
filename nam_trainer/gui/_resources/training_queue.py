@@ -581,6 +581,24 @@ class TrainingQueue:
             else:
                 head_scale = 0.02
 
+            # Create data config with proper splits
+            data_config = {
+                "train": {
+                    "ny": 8192,
+                    "stop_samples": None,
+                },
+                "validation": {
+                    "ny": None,
+                    "start_samples": None,
+                },
+                "common": {
+                    "x_path": str(job.input_path),
+                    "y_path": str(job.output_path),
+                    "delay": 0,
+                    "allow_unequal_lengths": True,
+                },
+            }
+
             # Create model config using proper two-layer structure
             model_config = {
                 "net": {
