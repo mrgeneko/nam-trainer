@@ -514,6 +514,7 @@ class QueueWindow:
 
         # Initial state: show A1, hide A2
         a2_frame.pack_forget()
+        a1_frame.pack(fill=_tk.X, padx=5, pady=5)  # Show A1 by default
 
         def on_version_change(*args):
             if version_var.get() == "a2":
