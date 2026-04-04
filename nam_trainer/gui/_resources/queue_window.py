@@ -460,24 +460,45 @@ class QueueWindow:
         version_combo.pack(side=_tk.LEFT, padx=5)
         version_combo.set("a1")
 
-        # Slimmable options frame (shown only for A2)
-        slimmable_frame = _ttk.LabelFrame(dialog, text="A2 Slimmable Options", padding=5)
-        slimmable_frame.pack(fill=_tk.X, padx=5, pady=5)
+        # Architecture section container - holds both A1 and A2 options in same location
+        arch_container = _ttk.Frame(dialog)
+        arch_container.pack(fill=_tk.X, padx=5, pady=5)
+        arch_sep = _ttk.Separator(dialog, orient=_tk.HORIZONTAL)
+        arch_sep.pack(fill=_tk.X, padx=5, pady=5)
 
-        allowed_frame = _ttk.Frame(slimmable_frame)
+        # A1: Size selection
+        a1_frame = _ttk.Frame(arch_container)
+        _ttk.Label(a1_frame, text="size:").pack(anchor=_tk.W, padx=5, pady=3)
+        arch_frame = _ttk.Frame(a1_frame)
+        arch_frame.pack(anchor=_tk.W, padx=5)
+
+        arch_vars = {}
+        default_archs = cfg.get("default_architectures", ["standard"])
+        for arch in reversed(_core.Architecture):
+            var = _tk.BooleanVar(value=arch.value in default_archs)
+            check = _ttk.Checkbutton(
+                arch_frame, text=arch.value.capitalize(), variable=var
+            )
+            check.pack(side=_tk.LEFT, padx=5)
+            arch_vars[arch] = var
+
+        # A2: Slimmable options
+        a2_frame = _ttk.LabelFrame(arch_container, text="A2 Slimmable Options", padding=5)
+
+        allowed_frame = _ttk.Frame(a2_frame)
         allowed_frame.pack(fill=_tk.X, padx=5, pady=3)
         _ttk.Label(allowed_frame, text="Allowed Channels:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
         allowed_channels_var = _tk.StringVar(value="3,6,12")
         _ttk.Entry(allowed_frame, textvariable=allowed_channels_var, width=20).pack(side=_tk.LEFT, padx=5)
         _ttk.Label(allowed_frame, text="(e.g., 3,6,12)", font=("Helvetica", 8)).pack(side=_tk.LEFT)
 
-        boosting_frame = _ttk.Frame(slimmable_frame)
+        boosting_frame = _ttk.Frame(a2_frame)
         boosting_frame.pack(fill=_tk.X, padx=5, pady=3)
         _ttk.Label(boosting_frame, text="Boosting:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
         boosting_var = _tk.BooleanVar(value=True)
         _ttk.Checkbutton(boosting_frame, variable=boosting_var).pack(side=_tk.LEFT)
 
-        init_frame = _ttk.Frame(slimmable_frame)
+        init_frame = _ttk.Frame(a2_frame)
         init_frame.pack(fill=_tk.X, padx=5, pady=3)
         _ttk.Label(init_frame, text="Init Strategy:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
         init_strategy_var = _tk.StringVar(value="smallest_and_zeros")
@@ -491,45 +512,18 @@ class QueueWindow:
         init_combo.pack(side=_tk.LEFT, padx=5)
         init_combo.set("smallest_and_zeros")
 
-        # Hide slimmable frame initially (A1 selected by default)
-        slimmable_frame.pack_forget()
+        # Initial state: show A1, hide A2
+        a2_frame.pack_forget()
 
         def on_version_change(*args):
             if version_var.get() == "a2":
-                slimmable_frame.pack(fill=_tk.X, padx=5, pady=5)
+                a1_frame.pack_forget()
+                a2_frame.pack(fill=_tk.X, padx=5, pady=5)
             else:
-                slimmable_frame.pack_forget()
+                a2_frame.pack_forget()
+                a1_frame.pack(fill=_tk.X, padx=5, pady=5)
 
         version_var.trace_add("write", on_version_change)
-
-        # Architecture section (only for A1)
-        arch_section = _ttk.Frame(dialog)
-        arch_section.pack(fill=_tk.X, padx=5, pady=5)
-        arch_sep = _ttk.Separator(dialog, orient=_tk.HORIZONTAL)
-        arch_sep.pack(fill=_tk.X, padx=5, pady=5)
-        _ttk.Label(arch_section, text="size:").pack(anchor=_tk.W, padx=5, pady=3)
-        arch_frame = _ttk.Frame(arch_section)
-        arch_frame.pack(anchor=_tk.W, padx=5)
-
-        arch_vars = {}
-        default_archs = cfg.get("default_architectures", ["standard"])
-        for arch in reversed(_core.Architecture):
-            var = _tk.BooleanVar(value=arch.value in default_archs)
-            check = _ttk.Checkbutton(
-                arch_frame, text=arch.value.capitalize(), variable=var
-            )
-            check.pack(side=_tk.LEFT, padx=5)
-            arch_vars[arch] = var
-
-        def on_version_change_arch(*args):
-            if version_var.get() == "a2":
-                arch_section.pack_forget()
-                arch_sep.pack_forget()
-            else:
-                arch_section.pack(fill=_tk.X, padx=5, pady=5)
-                arch_sep.pack(fill=_tk.X, padx=5, pady=5)
-
-        version_var.trace_add("write", on_version_change_arch)
 
         # Training settings section
         _ttk.Separator(dialog, orient=_tk.HORIZONTAL).pack(fill=_tk.X, padx=5, pady=10)
