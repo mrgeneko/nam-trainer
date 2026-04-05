@@ -98,6 +98,8 @@ class TrainingJob:
 
         input_name = _Path(self.input_path).stem
         arch = self.architecture.value
+        if self.architecture_version == ArchitectureVersion.A2:
+            arch = "slimmable"
         now = datetime.now()
         
         # Build token replacements

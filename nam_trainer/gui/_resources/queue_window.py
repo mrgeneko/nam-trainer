@@ -640,9 +640,10 @@ class QueueWindow:
             })
 
             selected_archs = [arch for arch, var in arch_vars.items() if var.get()]
-            if not selected_archs and version == "a1":
+            a2_enabled = a2_enable_var.get()
+            if not selected_archs and not a2_enabled:
                 _tk.messagebox.showerror(
-                    "Error", "Please select at least one architecture"
+                    "Error", "Please select at least one A1 size or enable A2 Slimmable."
                 )
                 return
 
@@ -696,13 +697,11 @@ class QueueWindow:
             
             # Get selected A1 architectures
             selected_archs = [arch for arch, var in arch_vars.items() if var.get()]
-            if not selected_archs:
-                _tk.messagebox.showerror("Error", "Please select at least one A1 size.")
+            a2_enabled = a2_enable_var.get()
+            if not selected_archs and not a2_enabled:
+                _tk.messagebox.showerror("Error", "Please select at least one A1 size or enable A2 Slimmable.")
                 return
             
-            # Check if A2 is enabled
-            a2_enabled = a2_enable_var.get()
-
             # Add A1 jobs
             for arch in selected_archs:
                 job_id = f"{_uuid.uuid4().hex[:8]}"
