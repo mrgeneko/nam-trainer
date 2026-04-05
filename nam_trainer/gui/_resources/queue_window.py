@@ -207,8 +207,6 @@ class QueueWindow:
             if job.status == JobStatus.PROCESSING:
                 if job.current_epoch is not None:
                     status_text = f"Epoch {job.current_epoch}/{job.num_epochs}"
-                    if job.current_esr is not None:
-                        status_text += f" ESR:{job.current_esr:.4f}"
                 else:
                     status_text = "Processing..."
             elif job.status == JobStatus.COMPLETED:
@@ -297,7 +295,7 @@ class QueueWindow:
 
         if running:
             self._label_status.config(
-                text=f"Running | Queued: {pending} | Done: {completed} | Failed: {failed}"
+                text=f"Queued: {pending} | Done: {completed} | Failed: {failed}"
             )
             # Schedule another refresh in 500ms if queue is running
             self._root.after(500, self._refresh_queue)
