@@ -39,6 +39,8 @@ class QueueWindow:
         self._root.geometry("800x600")
         self._root.minsize(600, 400)
 
+        self._add_job_dialog_window = None
+
         # Frame for controls
         self._frame_controls = _ttk.Frame(self._root)
         self._frame_controls.pack(fill=_tk.X, padx=5, pady=5)
@@ -258,6 +260,12 @@ class QueueWindow:
             else:
                 remaining_text = ""
 
+            # Determine size display value
+            if job.architecture_version == ArchitectureVersion.A2:
+                size_display = "slimmable"
+            else:
+                size_display = job.architecture.value
+
             self._tree.insert(
                 "",
                 _tk.END,
@@ -266,7 +274,7 @@ class QueueWindow:
                     job.job_id[:8],
                     _Path(job.input_path).name,
                     _Path(job.output_path).name,
-                    job.architecture.value,
+                    size_display,
                     job.get_basename(),
                     status_text,
                     esr_text,
@@ -367,9 +375,20 @@ class QueueWindow:
 
     def _add_job_dialog(self):
         """Open dialog to add a new job to the queue."""
+        if self._add_job_dialog_window is not None and self._add_job_dialog_window.winfo_exists():
+            self._add_job_dialog_window.lift()
+            self._add_job_dialog_window.focus()
+            return
+
         dialog = _tk.Toplevel(self._root)
+        self._add_job_dialog_window = dialog
         dialog.title("Add Job")
         dialog.geometry("750x810")
+
+        def on_dialog_close():
+            self._add_job_dialog_window = None
+            dialog.destroy()
+        dialog.protocol("WM_DELETE_WINDOW", on_dialog_close)
 
         cfg = _config.load() if _config else {}
 
@@ -445,28 +464,14 @@ class QueueWindow:
             command=lambda: batch_guid_var.set(_uuid.uuid4().hex[:8]),
         ).pack(side=_tk.RIGHT, padx=2)
 
-        # Architecture Version (A1/A2)
-        version_frame = _ttk.Frame(dialog)
-        version_frame.pack(fill=_tk.X, padx=5, pady=5)
-        _ttk.Label(version_frame, text="Architecture Version:", width=20, anchor=_tk.W).pack(side=_tk.LEFT)
-        version_var = _tk.StringVar(value="a1")
-        version_combo = _ttk.Combobox(
-            version_frame,
-            textvariable=version_var,
-            values=["a1", "a2"],
-            width=10,
-            state="readonly"
-        )
-        version_combo.pack(side=_tk.LEFT, padx=5)
-        version_combo.set(cfg.get("architecture_version", "a1"))
-
-        # Architecture section container - holds both A1 and A2 options in same location
+        # Architecture section - A1 on left, A2 on right
         arch_container = _ttk.Frame(dialog)
         arch_container.pack(fill=_tk.X, padx=5, pady=5)
 
-        # A1: Size selection
+        # A1: Size selection (left side)
         a1_frame = _ttk.Frame(arch_container)
-        _ttk.Label(a1_frame, text="size:").pack(anchor=_tk.W, padx=5, pady=3)
+        a1_frame.pack(side=_tk.LEFT, fill=_tk.X, expand=True, padx=(0, 5))
+        _ttk.Label(a1_frame, text="A1 Size:").pack(anchor=_tk.W, padx=5, pady=3)
         arch_frame = _ttk.Frame(a1_frame)
         arch_frame.pack(anchor=_tk.W, padx=5)
 
@@ -480,8 +485,12 @@ class QueueWindow:
             check.pack(side=_tk.LEFT, padx=5)
             arch_vars[arch] = var
 
-        # A2: Slimmable options
-        a2_frame = _ttk.LabelFrame(arch_container, text="A2 Slimmable Options", padding=5)
+        # A2: Slimmable options (right side)
+        a2_frame = _ttk.LabelFrame(arch_container, padding=5)
+        a2_frame.pack(side=_tk.RIGHT, fill=_tk.X, expand=True, padx=(5, 0))
+
+        a2_enable_var = _tk.BooleanVar(value=cfg.get("a2_slimmable", False))
+        _ttk.Checkbutton(a2_frame, text="A2 Slimmable", variable=a2_enable_var).pack(anchor=_tk.W, padx=5, pady=3)
 
         allowed_frame = _ttk.Frame(a2_frame)
         allowed_frame.pack(fill=_tk.X, padx=5, pady=3)
@@ -509,20 +518,6 @@ class QueueWindow:
         )
         init_combo.pack(side=_tk.LEFT, padx=5)
         init_combo.set("smallest_and_zeros")
-
-        # Initial state: show A1, hide A2
-        a2_frame.pack_forget()
-        a1_frame.pack(fill=_tk.X, padx=5, pady=5)  # Show A1 by default
-
-        def on_version_change(*args):
-            if version_var.get() == "a2":
-                a1_frame.pack_forget()
-                a2_frame.pack(fill=_tk.X, padx=5, pady=5)
-            else:
-                a2_frame.pack_forget()
-                a1_frame.pack(fill=_tk.X, padx=5, pady=5)
-
-        version_var.trace_add("write", on_version_change)
 
         # Training settings section
         _ttk.Separator(dialog, orient=_tk.HORIZONTAL).pack(fill=_tk.X, padx=5, pady=10)
@@ -619,9 +614,12 @@ class QueueWindow:
 
         def on_add():
             # Save settings to config
+            a2_enabled = a2_enable_var.get()
+            version = "a2" if a2_enabled else "a1"
             _config.save({
                 "default_architectures": [arch.value for arch, var in arch_vars.items() if var.get()],
-                "architecture_version": version_var.get(),
+                "architecture_version": version,
+                "a2_slimmable": a2_enable_var.get(),
                 "allowed_channels": allowed_channels_var.get(),
                 "boosting": boosting_var.get(),
                 "init_strategy": init_strategy_var.get(),
@@ -642,7 +640,7 @@ class QueueWindow:
             })
 
             selected_archs = [arch for arch, var in arch_vars.items() if var.get()]
-            if not selected_archs and version_var.get() == "a1":
+            if not selected_archs and version == "a1":
                 _tk.messagebox.showerror(
                     "Error", "Please select at least one architecture"
                 )
@@ -678,29 +676,6 @@ class QueueWindow:
 
             batch_guid = batch_guid_var.get() if batch_guid_var.get() else None
 
-            # Parse architecture version (A1 or A2)
-            from training_queue import ArchitectureVersion
-            arch_version = ArchitectureVersion.A2 if version_var.get() == "a2" else ArchitectureVersion.A1
-
-            # For A2, use standard architecture as default base
-            # (the size is determined by allowed_channels, not the legacy sizes)
-            if arch_version == ArchitectureVersion.A2:
-                selected_archs = [_core.Architecture.STANDARD]
-
-            # Parse slimmable config for A2
-            slimmable_config = None
-            if arch_version == ArchitectureVersion.A2:
-                allowed_str = allowed_channels_var.get().strip()
-                if allowed_str:
-                    allowed_channels = [int(x.strip()) for x in allowed_str.split(",") if x.strip()]
-                else:
-                    allowed_channels = [3, 6, 12]
-                slimmable_config = {
-                    "allowed_channels": allowed_channels,
-                    "boosting": boosting_var.get(),
-                    "init_strategy": init_strategy_var.get(),
-                }
-
             # Get input and output paths
             input_path = _Path(input_var.get())
             output_path = _Path(output_var.get())
@@ -716,7 +691,19 @@ class QueueWindow:
                 )
                 return
 
-            # Add jobs for each architecture
+            # Parse architecture - check A2 checkbox and A1 size selections
+            from training_queue import ArchitectureVersion
+            
+            # Get selected A1 architectures
+            selected_archs = [arch for arch, var in arch_vars.items() if var.get()]
+            if not selected_archs:
+                _tk.messagebox.showerror("Error", "Please select at least one A1 size.")
+                return
+            
+            # Check if A2 is enabled
+            a2_enabled = a2_enable_var.get()
+
+            # Add A1 jobs
             for arch in selected_archs:
                 job_id = f"{_uuid.uuid4().hex[:8]}"
                 job = TrainingJob(
@@ -727,7 +714,43 @@ class QueueWindow:
                     architecture=arch,
                     num_epochs=num_epochs,
                     esr_threshold=esr_threshold,
-                    architecture_version=arch_version,
+                    architecture_version=ArchitectureVersion.A1,
+                    slimmable_config=None,
+                    output_template=output_template_var.get(),
+                    batch_guid=batch_guid,
+                    model_name=name_var.get() if name_var.get() else None,
+                    modeled_by=modeled_by_var.get() if modeled_by_var.get() else None,
+                    gear_type=gear_type,
+                    gear_make=make_var.get() if make_var.get() else None,
+                    gear_model=model_var.get() if model_var.get() else None,
+                    tone_type=tone_type,
+                    input_level_dbu=input_level,
+                    output_level_dbu=output_level,
+                )
+                self._queue.add_job(job)
+
+            # Add A2 job if enabled
+            if a2_enabled:
+                allowed_str = allowed_channels_var.get().strip()
+                if allowed_str:
+                    allowed_channels = [int(x.strip()) for x in allowed_str.split(",") if x.strip()]
+                else:
+                    allowed_channels = [3, 6, 12]
+                slimmable_config = {
+                    "allowed_channels": allowed_channels,
+                    "boosting": boosting_var.get(),
+                    "init_strategy": init_strategy_var.get(),
+                }
+                job_id = f"{_uuid.uuid4().hex[:8]}"
+                job = TrainingJob(
+                    job_id=job_id,
+                    input_path=input_path,
+                    output_path=output_path,
+                    train_destination=train_dest,
+                    architecture=_core.Architecture.STANDARD,
+                    num_epochs=num_epochs,
+                    esr_threshold=esr_threshold,
+                    architecture_version=ArchitectureVersion.A2,
                     slimmable_config=slimmable_config,
                     output_template=output_template_var.get(),
                     batch_guid=batch_guid,
@@ -743,11 +766,12 @@ class QueueWindow:
                 self._queue.add_job(job)
 
             self._refresh_queue()
+            self._add_job_dialog_window = None
             dialog.destroy()
 
         button_frame = _ttk.Frame(dialog)
         button_frame.pack(pady=10)
-        _ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side=_tk.LEFT, padx=5)
+        _ttk.Button(button_frame, text="Cancel", command=on_dialog_close).pack(side=_tk.LEFT, padx=5)
         _ttk.Button(button_frame, text="Add to Queue", command=on_add).pack(side=_tk.LEFT, padx=5)
 
     def close(self):
